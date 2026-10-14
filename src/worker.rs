@@ -38,10 +38,7 @@ const RECONNECT_DELAY: Duration = Duration::from_secs(2);
 /// # Errors
 /// Returns the certificate-ensure or transport-build failure (the
 /// caller logs and degrades).
-async fn build_workload_http(
-    auth_issuer: &str,
-    workload: &str,
-) -> anyhow::Result<reqwest::Client> {
+async fn build_workload_http(auth_issuer: &str, workload: &str) -> anyhow::Result<reqwest::Client> {
     let cert = sentin8::auth::m2m::ensure_workload_certificate(
         auth_issuer,
         workload,
@@ -102,19 +99,17 @@ pub async fn spawn(state: &AppState) {
     // transport feeds BOTH the FlowClient and the step-handler profile
     // registration below. A missing transport is fatal for Flow access —
     // the identity cannot be sourced anywhere else (no fallback).
-    let flow = match build_workload_http(&state.config.sentin8_auth_issuer, "reporting-worker").await {
+    let flow = match build_workload_http(&state.config.sentin8_auth_issuer, "reporting-worker")
+        .await
+    {
         Ok(http) => {
             // Register the reporting step-handler profile with Flow using
             // the same identity (the Flow registration contract, reporting
             // DESIGN.md §2). Best-effort — an outage at boot retries on the
             // worker's next Flow re-drive, never blocks serving.
             let self_url = format!("http://0.0.0.0:{}", state.config.port);
-            if let Err(e) = register_with_flow(
-                &state.config.sentin8_flow_url,
-                &self_url,
-                Some(&http),
-            )
-            .await
+            if let Err(e) =
+                register_with_flow(&state.config.sentin8_flow_url, &self_url, Some(&http)).await
             {
                 tracing::warn!(error = %e, "failed to register reporting step handler profile with Flow");
             }
@@ -148,7 +143,6 @@ pub async fn spawn(state: &AppState) {
     // `vertical enroll`, fired by cron. No boot-time cron calls.
 }
 
-
 /// SSE consumer loop — connect to Bus, receive pushed messages, process
 /// each filing event (idempotently), ACK on success, nack on failure so
 /// Bus tracks retries/DLQ, reconnect with a 2s backoff.
@@ -160,7 +154,11 @@ async fn sse_consume_loop(state: Arc<WorkerState>) {
     );
 
     loop {
-        let resp = match state.bus.sse_consume(&state.stream_family, CONSUMER_GROUP).await {
+        let resp = match state
+            .bus
+            .sse_consume(&state.stream_family, CONSUMER_GROUP)
+            .await
+        {
             Ok(r) => r,
             Err(e) => {
                 tracing::warn!(error = %e, "reporting-worker: sse_consume failed; retrying in 2s");
@@ -215,7 +213,10 @@ async fn sse_consume_loop(state: Arc<WorkerState>) {
 
                 match process_filing_event(&state, &env_id, &event_type, &payload).await {
                     Ok(()) => {
-                        let _ = state.bus.ack(&state.stream_family, CONSUMER_GROUP, &message_id).await;
+                        let _ = state
+                            .bus
+                            .ack(&state.stream_family, CONSUMER_GROUP, &message_id)
+                            .await;
                     }
                     Err(e) => {
                         tracing::warn!(error = %e, message_id = %message_id, "reporting-worker: filing event failed; nacking for retry/DLQ");
@@ -223,8 +224,14 @@ async fn sse_consume_loop(state: Arc<WorkerState>) {
                         // the retry delay — None takes the default), then
                         // ACK to move on (the DLQ handles poison
                         // messages).
-                        let _ = state.bus.nack(&state.stream_family, CONSUMER_GROUP, &message_id, None).await;
-                        let _ = state.bus.ack(&state.stream_family, CONSUMER_GROUP, &message_id).await;
+                        let _ = state
+                            .bus
+                            .nack(&state.stream_family, CONSUMER_GROUP, &message_id, None)
+                            .await;
+                        let _ = state
+                            .bus
+                            .ack(&state.stream_family, CONSUMER_GROUP, &message_id)
+                            .await;
                     }
                 }
             }
@@ -257,7 +264,11 @@ async fn process_filing_event(
         return file_suspicious_activity(state, env_uuid, payload).await;
     }
 
-    let mut conn = state.pool.acquire().await.map_err(|e| format!("pool: {e}"))?;
+    let mut conn = state
+        .pool
+        .acquire()
+        .await
+        .map_err(|e| format!("pool: {e}"))?;
     set_tenant_context(&mut conn, env_uuid).await;
 
     tracing::debug!(
@@ -295,11 +306,7 @@ async fn file_suspicious_activity(
         .ok_or_else(|| "missing report_kind in suspicious:detected payload".to_string())?
         .to_string();
 
-    let mut tx = state
-        .pool
-        .begin()
-        .await
-        .map_err(|e| format!("tx: {e}"))?;
+    let mut tx = state.pool.begin().await.map_err(|e| format!("tx: {e}"))?;
     set_tenant_context(&mut tx, env_id).await;
 
     // Idempotent per (case, report kind): the filing_runs key namespaces
@@ -368,7 +375,10 @@ pub async fn register_with_flow(
         "step_kinds": ["FilingGenerateStep", "FilingPackageStep", "FilingSubmitStep", "FilingAcknowledgeStep"],
     });
     let resp = http
-        .post(format!("{}/v1/handlers/register", sentin8_flow_url.trim_end_matches('/')))
+        .post(format!(
+            "{}/v1/handlers/register",
+            sentin8_flow_url.trim_end_matches('/')
+        ))
         .json(&body)
         .send()
         .await
@@ -425,17 +435,17 @@ async fn advance_run(
         )
     };
 
-    let mut q = sqlx::query(&sql)
-        .bind(env_id)
-        .bind(to)
-        .bind(run_id);
+    let mut q = sqlx::query(&sql).bind(env_id).bind(to).bind(run_id);
     for s in from {
         q = q.bind(s);
     }
     if let Some(r) = artifact_ref {
         q = q.bind(r);
     }
-    let row = q.fetch_optional(&mut *tx).await.map_err(|e| format!("advance: {e}"))?;
+    let row = q
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|e| format!("advance: {e}"))?;
     let advanced = row.is_some();
     tx.commit().await.map_err(|e| format!("commit: {e}"))?;
     Ok(advanced)
@@ -445,13 +455,30 @@ async fn advance_run(
 /// public-API reads at generation time) and mark the run generated.
 /// Input: `{ "env_id": Uuid, "run_id": Uuid, ... }`.
 async fn step_generate(pool: &sqlx::PgPool, input: &serde_json::Value) -> ProxyBackResponse {
-    let env_id = match input.get("env_id").and_then(|v| v.as_str()).and_then(|s| Uuid::parse_str(s).ok()) {
+    let env_id = match input
+        .get("env_id")
+        .and_then(|v| v.as_str())
+        .and_then(|s| Uuid::parse_str(s).ok())
+    {
         Some(id) => id,
         None => return ProxyBackResponse::failure("missing env_id in step input"),
     };
-    match advance_run(pool, env_id, &input["run_id"], &["draft"], "generated", None).await {
-        Ok(true) => ProxyBackResponse::success(serde_json::json!({ "run_id": input["run_id"], "status": "generated" })),
-        Ok(false) => ProxyBackResponse::success(serde_json::json!({ "run_id": input["run_id"], "status": "already-advanced" })),
+    match advance_run(
+        pool,
+        env_id,
+        &input["run_id"],
+        &["draft"],
+        "generated",
+        None,
+    )
+    .await
+    {
+        Ok(true) => ProxyBackResponse::success(
+            serde_json::json!({ "run_id": input["run_id"], "status": "generated" }),
+        ),
+        Ok(false) => ProxyBackResponse::success(
+            serde_json::json!({ "run_id": input["run_id"], "status": "already-advanced" }),
+        ),
         Err(e) => ProxyBackResponse::failure(e),
     }
 }
@@ -461,14 +488,34 @@ async fn step_generate(pool: &sqlx::PgPool, input: &serde_json::Value) -> ProxyB
 /// this step (an invalid return never reaches a regulator) — the packaged
 /// artifact uploads to Storage and its object path lands on the run.
 async fn step_package(pool: &sqlx::PgPool, input: &serde_json::Value) -> ProxyBackResponse {
-    let env_id = match input.get("env_id").and_then(|v| v.as_str()).and_then(|s| Uuid::parse_str(s).ok()) {
+    let env_id = match input
+        .get("env_id")
+        .and_then(|v| v.as_str())
+        .and_then(|s| Uuid::parse_str(s).ok())
+    {
         Some(id) => id,
         None => return ProxyBackResponse::failure("missing env_id in step input"),
     };
-    let artifact_ref = input.get("artifact_ref").and_then(|v| v.as_str()).map(|s| s.to_string());
-    match advance_run(pool, env_id, &input["run_id"], &["generated", "validated"], "packaged", artifact_ref.as_deref()).await {
-        Ok(true) => ProxyBackResponse::success(serde_json::json!({ "run_id": input["run_id"], "status": "packaged" })),
-        Ok(false) => ProxyBackResponse::success(serde_json::json!({ "run_id": input["run_id"], "status": "already-advanced" })),
+    let artifact_ref = input
+        .get("artifact_ref")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    match advance_run(
+        pool,
+        env_id,
+        &input["run_id"],
+        &["generated", "validated"],
+        "packaged",
+        artifact_ref.as_deref(),
+    )
+    .await
+    {
+        Ok(true) => ProxyBackResponse::success(
+            serde_json::json!({ "run_id": input["run_id"], "status": "packaged" }),
+        ),
+        Ok(false) => ProxyBackResponse::success(
+            serde_json::json!({ "run_id": input["run_id"], "status": "already-advanced" }),
+        ),
         Err(e) => ProxyBackResponse::failure(e),
     }
 }
@@ -478,24 +525,44 @@ async fn step_package(pool: &sqlx::PgPool, input: &serde_json::Value) -> ProxyBa
 /// plaintext). Creates the `submissions` row with `acknowledgment =
 /// pending`.
 async fn step_submit(pool: &sqlx::PgPool, input: &serde_json::Value) -> ProxyBackResponse {
-    let env_id = match input.get("env_id").and_then(|v| v.as_str()).and_then(|s| Uuid::parse_str(s).ok()) {
+    let env_id = match input
+        .get("env_id")
+        .and_then(|v| v.as_str())
+        .and_then(|s| Uuid::parse_str(s).ok())
+    {
         Some(id) => id,
         None => return ProxyBackResponse::failure("missing env_id in step input"),
     };
-    match advance_run(pool, env_id, &input["run_id"], &["packaged"], "submitted", None).await {
+    match advance_run(
+        pool,
+        env_id,
+        &input["run_id"],
+        &["packaged"],
+        "submitted",
+        None,
+    )
+    .await
+    {
         Ok(true) => {
             // Record the submission envelope — the regulator's ack lands
             // on this row when the acknowledge step runs.
-            let Some(run_id) = input["run_id"].as_str().and_then(|s| Uuid::parse_str(s).ok()) else {
-                return ProxyBackResponse::success(serde_json::json!({ "run_id": input["run_id"], "status": "submitted" }));
+            let Some(run_id) = input["run_id"]
+                .as_str()
+                .and_then(|s| Uuid::parse_str(s).ok())
+            else {
+                return ProxyBackResponse::success(
+                    serde_json::json!({ "run_id": input["run_id"], "status": "submitted" }),
+                );
             };
             let mut tx = match pool.begin().await {
                 Ok(t) => t,
                 Err(e) => return ProxyBackResponse::failure(format!("tx: {e}")),
             };
             set_tenant_context(&mut tx, env_id).await;
-            let endpoint_id: Option<Uuid> = input.get("endpoint_id")
-                .and_then(|v| v.as_str()).and_then(|s| Uuid::parse_str(s).ok());
+            let endpoint_id: Option<Uuid> = input
+                .get("endpoint_id")
+                .and_then(|v| v.as_str())
+                .and_then(|s| Uuid::parse_str(s).ok());
             let _ = sqlx::query(
                 r#"INSERT INTO submissions (env_id, run_id, endpoint_id, acknowledgment, submitted_at)
                    VALUES ($1, $2, $3, 'pending', now())"#,
@@ -503,9 +570,13 @@ async fn step_submit(pool: &sqlx::PgPool, input: &serde_json::Value) -> ProxyBac
             .bind(env_id).bind(run_id).bind(endpoint_id)
             .execute(&mut *tx).await;
             let _ = tx.commit().await;
-            ProxyBackResponse::success(serde_json::json!({ "run_id": run_id, "status": "submitted" }))
+            ProxyBackResponse::success(
+                serde_json::json!({ "run_id": run_id, "status": "submitted" }),
+            )
         }
-        Ok(false) => ProxyBackResponse::success(serde_json::json!({ "run_id": input["run_id"], "status": "already-advanced" })),
+        Ok(false) => ProxyBackResponse::success(
+            serde_json::json!({ "run_id": input["run_id"], "status": "already-advanced" }),
+        ),
         Err(e) => ProxyBackResponse::failure(e),
     }
 }
@@ -514,19 +585,30 @@ async fn step_submit(pool: &sqlx::PgPool, input: &serde_json::Value) -> ProxyBac
 /// rejection; rejection re-enters as an amendment workflow (terminal
 /// states never regress — corrections are amendments).
 async fn step_acknowledge(pool: &sqlx::PgPool, input: &serde_json::Value) -> ProxyBackResponse {
-    let env_id = match input.get("env_id").and_then(|v| v.as_str()).and_then(|s| Uuid::parse_str(s).ok()) {
+    let env_id = match input
+        .get("env_id")
+        .and_then(|v| v.as_str())
+        .and_then(|s| Uuid::parse_str(s).ok())
+    {
         Some(id) => id,
         None => return ProxyBackResponse::failure("missing env_id in step input"),
     };
-    let ack = input.get("acknowledgment").and_then(|v| v.as_str()).unwrap_or("pending");
+    let ack = input
+        .get("acknowledgment")
+        .and_then(|v| v.as_str())
+        .unwrap_or("pending");
     let to = match ack {
         "acknowledged" => "acknowledged",
         "rejected" => "rejected",
         other => return ProxyBackResponse::failure(format!("unknown acknowledgment: {other}")),
     };
     match advance_run(pool, env_id, &input["run_id"], &["submitted"], to, None).await {
-        Ok(true) => ProxyBackResponse::success(serde_json::json!({ "run_id": input["run_id"], "status": to })),
-        Ok(false) => ProxyBackResponse::success(serde_json::json!({ "run_id": input["run_id"], "status": "already-advanced" })),
+        Ok(true) => ProxyBackResponse::success(
+            serde_json::json!({ "run_id": input["run_id"], "status": to }),
+        ),
+        Ok(false) => ProxyBackResponse::success(
+            serde_json::json!({ "run_id": input["run_id"], "status": "already-advanced" }),
+        ),
         Err(e) => ProxyBackResponse::failure(e),
     }
 }
@@ -535,7 +617,10 @@ async fn step_acknowledge(pool: &sqlx::PgPool, input: &serde_json::Value) -> Pro
 /// The handler is sync (the DB half of the step contract); generation's
 /// Ledger/Risk public-API reads run inside the generate step's
 /// implementation as it grows (RPT-GEN-1 scope).
-pub(crate) async fn execute_filing_step(pool: &sqlx::PgPool, req: &ProxyBackRequest) -> ProxyBackResponse {
+pub(crate) async fn execute_filing_step(
+    pool: &sqlx::PgPool,
+    req: &ProxyBackRequest,
+) -> ProxyBackResponse {
     match req.step_kind.as_str() {
         "FilingGenerateStep" => step_generate(pool, &req.input).await,
         "FilingPackageStep" => step_package(pool, &req.input).await,

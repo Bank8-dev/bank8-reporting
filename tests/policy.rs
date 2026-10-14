@@ -54,8 +54,13 @@ fn ctx(token_tp: &str, scope_list: &[&str]) -> RequestCtx {
 
 fn mirror_engine(mode: PolicyMode) -> PolicyEngine {
     let e = PolicyEngine::new(SERVICE);
-    e.load_from_rows(vec![row("scope-mirror", SCOPE_MIRROR_POLICIES, mode, PolicyOrigin::Platform)])
-        .expect("declared scope-mirror set must parse");
+    e.load_from_rows(vec![row(
+        "scope-mirror",
+        SCOPE_MIRROR_POLICIES,
+        mode,
+        PolicyOrigin::Platform,
+    )])
+    .expect("declared scope-mirror set must parse");
     e
 }
 
@@ -136,8 +141,15 @@ fn m2m_parity() {
 #[test]
 fn platform_admin_scopes_pass() {
     let e = mirror_engine(PolicyMode::Enforced);
-    for action in ["bank8:reporting:runs:read", "bank8:reporting:runs:write", "bank8:reporting:submissions:read"] {
-        let out = e.evaluate(&ctx("user", &["sentin8:sys:admin"]), &EvalTarget::new(action));
+    for action in [
+        "bank8:reporting:runs:read",
+        "bank8:reporting:runs:write",
+        "bank8:reporting:submissions:read",
+    ] {
+        let out = e.evaluate(
+            &ctx("user", &["sentin8:sys:admin"]),
+            &EvalTarget::new(action),
+        );
         assert!(out.is_allow(), "sys:admin must pass {action}");
     }
 }
@@ -147,7 +159,12 @@ fn platform_admin_scopes_pass() {
 fn forbid_beats_permit() {
     let e = PolicyEngine::new(SERVICE);
     e.load_from_rows(vec![
-        row("scope-mirror", SCOPE_MIRROR_POLICIES, PolicyMode::Enforced, PolicyOrigin::Platform),
+        row(
+            "scope-mirror",
+            SCOPE_MIRROR_POLICIES,
+            PolicyMode::Enforced,
+            PolicyOrigin::Platform,
+        ),
         row(
             "tenant-freeze",
             "forbid(principal, action == Action::\"bank8:reporting:runs:write\", resource);",
@@ -160,7 +177,10 @@ fn forbid_beats_permit() {
         &ctx("user", &["bank8:reporting:runs:write"]),
         &EvalTarget::new("bank8:reporting:runs:write"),
     );
-    assert!(matches!(out.enforce_decision, Decision::Deny { .. }), "forbid wins");
+    assert!(
+        matches!(out.enforce_decision, Decision::Deny { .. }),
+        "forbid wins"
+    );
 }
 
 /// Role-keyed tenant sets participate in the same decision (§3.1d).
@@ -174,10 +194,18 @@ fn role_keyed_tenant_set_decides() {
         PolicyOrigin::Tenant,
     )])
     .expect("load");
-    let denied = e.evaluate(&ctx("user", &[]), &EvalTarget::new("bank8:reporting:runs:write"));
+    let denied = e.evaluate(
+        &ctx("user", &[]),
+        &EvalTarget::new("bank8:reporting:runs:write"),
+    );
     assert!(!denied.is_allow());
     let allowed = e.evaluate(
-        &ctx("user", &[]).with_roles(["bank8:reporting:admin"].iter().map(|s| s.to_string()).collect()),
+        &ctx("user", &[]).with_roles(
+            ["bank8:reporting:admin"]
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+        ),
         &EvalTarget::new("bank8:reporting:runs:write"),
     );
     assert!(allowed.is_allow());
@@ -188,7 +216,12 @@ fn role_keyed_tenant_set_decides() {
 #[test]
 fn cross_env_set_isolated() {
     let other_env = uuid::Uuid::new_v4();
-    let mut r = row("other-env-set", SCOPE_MIRROR_POLICIES, PolicyMode::Enforced, PolicyOrigin::Platform);
+    let mut r = row(
+        "other-env-set",
+        SCOPE_MIRROR_POLICIES,
+        PolicyMode::Enforced,
+        PolicyOrigin::Platform,
+    );
     r.env_id = other_env;
     let e = PolicyEngine::new(SERVICE);
     e.load_from_rows(vec![r]).expect("load");
@@ -196,7 +229,10 @@ fn cross_env_set_isolated() {
         &ctx("user", &["bank8:reporting:runs:read"]),
         &EvalTarget::new("bank8:reporting:runs:read"),
     );
-    assert!(!out.is_allow(), "another env's set must not decide this env");
+    assert!(
+        !out.is_allow(),
+        "another env's set must not decide this env"
+    );
 }
 
 /// Registration parity: the declared set covers EVERY action the handlers
@@ -212,7 +248,10 @@ fn declared_mirror_covers_every_handler_action() {
     let e = mirror_engine(PolicyMode::Enforced);
     for action in HANDLER_ACTIONS {
         let out = e.evaluate(&ctx("user", &[*action]), &EvalTarget::new(*action));
-        assert!(out.is_allow(), "action {action} must be covered by the mirror");
+        assert!(
+            out.is_allow(),
+            "action {action} must be covered by the mirror"
+        );
     }
 }
 

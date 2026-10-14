@@ -6,9 +6,9 @@
 //! Axum server setup for Reporting — shell boot composition.
 //! See `services/reporting/DESIGN.md` §2.
 
-use std::sync::Arc;
-use axum::routing::{get, post};
 use crate::handlers::{self, AppState};
+use axum::routing::{get, post};
+use std::sync::Arc;
 
 pub async fn build_state(core: sentin8::shell::ServiceCore) -> anyhow::Result<AppState> {
     let config = Arc::new(crate::config::ReportingConfig::from_env());
@@ -21,10 +21,8 @@ pub async fn build_state(core: sentin8::shell::ServiceCore) -> anyhow::Result<Ap
     // ── MemBus (principles §4.7 — membus → bus → API): the newest-wins
     // state-refresh tier. Fail-soft by contract — an unreachable Valkey
     // disables refresh with a WARN, never a startup error.
-    let membus = sentin8::membus::ServiceBus::connect(
-        "bank8:reporting",
-        &core.config.valkey_url,
-    ).await;
+    let membus =
+        sentin8::membus::ServiceBus::connect("bank8:reporting", &core.config.valkey_url).await;
 
     let state = AppState {
         config,
@@ -93,34 +91,55 @@ pub fn routes(router: axum::Router<AppState>, state: AppState) -> axum::Router<A
         .route("/v1/internal/steps/execute", post(handlers::execute_step))
         // Calendar due-check (Cron proxy-back — RPT-CAL-1): Cron posts to
         // {internalPath}/schedules/run with its fixed body envelope.
-        .route("/v1/internal/calendar/schedules/run", post(handlers::calendar_due_check))
+        .route(
+            "/v1/internal/calendar/schedules/run",
+            post(handlers::calendar_due_check),
+        )
         // ── Admin UI (RFW) + policy admin (§3.6 — shared implementation) ──
         .route("/v1/admin/ui/{*page}", get(crate::admin_ui::get_admin_ui))
         .route("/v1/admin/overview", get(crate::admin_ui::admin_overview))
-        .route("/v1/admin/policy-sets",
-            get(sentin8::shield::admin::list_policy_sets::<AppState>))
-        .route("/v1/admin/policy-sets/{name}",
+        .route(
+            "/v1/admin/policy-sets",
+            get(sentin8::shield::admin::list_policy_sets::<AppState>),
+        )
+        .route(
+            "/v1/admin/policy-sets/{name}",
             get(sentin8::shield::admin::get_policy_set::<AppState>)
                 .put(sentin8::shield::admin::put_policy_set::<AppState>)
-                .delete(sentin8::shield::admin::delete_policy_set::<AppState>))
-        .route("/v1/admin/policy-sets/{name}/test",
-            post(sentin8::shield::admin::test_policy_set::<AppState>))
-        .route("/v1/admin/policy-sets/enforce",
-            post(sentin8::shield::admin::admin_enforce_policy_set::<AppState>))
-        .route("/v1/admin/policy-sets/shadow",
-            post(sentin8::shield::admin::admin_shadow_policy_set::<AppState>))
-        .route("/v1/admin/policy-sets/disable",
-            post(sentin8::shield::admin::admin_disable_policy_set::<AppState>))
-        .route("/v1/admin/relations",
+                .delete(sentin8::shield::admin::delete_policy_set::<AppState>),
+        )
+        .route(
+            "/v1/admin/policy-sets/{name}/test",
+            post(sentin8::shield::admin::test_policy_set::<AppState>),
+        )
+        .route(
+            "/v1/admin/policy-sets/enforce",
+            post(sentin8::shield::admin::admin_enforce_policy_set::<AppState>),
+        )
+        .route(
+            "/v1/admin/policy-sets/shadow",
+            post(sentin8::shield::admin::admin_shadow_policy_set::<AppState>),
+        )
+        .route(
+            "/v1/admin/policy-sets/disable",
+            post(sentin8::shield::admin::admin_disable_policy_set::<AppState>),
+        )
+        .route(
+            "/v1/admin/relations",
             get(sentin8::shield::admin::list_relations::<AppState>)
                 .put(sentin8::shield::admin::put_relation::<AppState>)
-                .delete(sentin8::shield::admin::delete_relation::<AppState>))
-        .route("/v1/admin/relations/check",
-            get(sentin8::shield::admin::check_relation::<AppState>))
-        .route("/v1/admin/attributes",
+                .delete(sentin8::shield::admin::delete_relation::<AppState>),
+        )
+        .route(
+            "/v1/admin/relations/check",
+            get(sentin8::shield::admin::check_relation::<AppState>),
+        )
+        .route(
+            "/v1/admin/attributes",
             get(sentin8::shield::admin::list_attributes::<AppState>)
                 .put(sentin8::shield::admin::put_attribute::<AppState>)
-                .delete(sentin8::shield::admin::delete_attribute::<AppState>))
+                .delete(sentin8::shield::admin::delete_attribute::<AppState>),
+        )
         .with_state(state)
 }
 

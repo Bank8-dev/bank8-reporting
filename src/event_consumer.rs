@@ -26,10 +26,7 @@ const RECONNECT_DELAY: Duration = Duration::from_secs(2);
 
 /// Spawn the Bus consumer background task. Called once from
 /// `server::build_state`.
-pub fn spawn(
-    pool: PgPool,
-    bus_client: sentin8::bus::client::BusClient,
-) {
+pub fn spawn(pool: PgPool, bus_client: sentin8::bus::client::BusClient) {
     tokio::spawn(async move {
         run(pool, bus_client).await;
     });
@@ -114,20 +111,22 @@ async fn sse_loop(
 
 /// Startup backfill — re-derive obligations for envs known locally.
 async fn backfill_known_envs(pool: &PgPool) {
-    let rows: Vec<(Uuid,)> = match sqlx::query_as(
-        r#"SELECT DISTINCT env_id FROM filing_obligations"#,
-    )
-    .fetch_all(pool)
-    .await
-    {
-        Ok(r) => r,
-        Err(e) => {
-            tracing::warn!(error = %e, "reporting: backfill query failed");
-            return;
-        }
-    };
+    let rows: Vec<(Uuid,)> =
+        match sqlx::query_as(r#"SELECT DISTINCT env_id FROM filing_obligations"#)
+            .fetch_all(pool)
+            .await
+        {
+            Ok(r) => r,
+            Err(e) => {
+                tracing::warn!(error = %e, "reporting: backfill query failed");
+                return;
+            }
+        };
 
-    tracing::info!("reporting: backfill — {} known env(s) re-verified", rows.len());
+    tracing::info!(
+        "reporting: backfill — {} known env(s) re-verified",
+        rows.len()
+    );
 
     for (env_id,) in rows {
         seed_obligations(pool, env_id).await;
@@ -144,14 +143,24 @@ async fn handle_message(pool: &PgPool, msg: &sentin8::bus::contracts::Message) {
     }
 
     let payload: &serde_json::Value = &msg.payload;
-    let service = payload.get("service").and_then(|v| v.as_str()).unwrap_or("");
-    let enabled = payload.get("enabled").and_then(|v| v.as_bool()).unwrap_or(false);
+    let service = payload
+        .get("service")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let enabled = payload
+        .get("enabled")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
 
     if service != "reporting" || !enabled {
         return;
     }
 
-    let env_id = match payload.get("env_id").and_then(|v| v.as_str()).and_then(|s| Uuid::parse_str(s).ok()) {
+    let env_id = match payload
+        .get("env_id")
+        .and_then(|v| v.as_str())
+        .and_then(|s| Uuid::parse_str(s).ok())
+    {
         Some(id) => id,
         None => return,
     };

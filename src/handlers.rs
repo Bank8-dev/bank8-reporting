@@ -20,8 +20,8 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
-use uuid::Uuid;
 use utoipa::ToSchema;
+use uuid::Uuid;
 
 use crate::auth;
 use crate::config::ReportingConfig;
@@ -63,10 +63,24 @@ pub(crate) async fn set_tenant_context(conn: &mut sqlx::PgConnection, env_id: Uu
 /// `POST /v1/produce` (idempotency_key = row id). Errors are logged and
 /// ignored — the committed domain row stays authoritative and the relay
 /// retries from the outbox.
-pub(crate) async fn emit_event(state: &AppState, env_id: Uuid, event_type: &str, payload: serde_json::Value) {
-    state.membus.publish_pubsub("reporting", event_type, payload.clone()).await;
-    if let Err(e) =
-        sentin8::bus::outbox::insert_outbox_row_pool(&state.pool, env_id, "reporting", event_type, &payload).await
+pub(crate) async fn emit_event(
+    state: &AppState,
+    env_id: Uuid,
+    event_type: &str,
+    payload: serde_json::Value,
+) {
+    state
+        .membus
+        .publish_pubsub("reporting", event_type, payload.clone())
+        .await;
+    if let Err(e) = sentin8::bus::outbox::insert_outbox_row_pool(
+        &state.pool,
+        env_id,
+        "reporting",
+        event_type,
+        &payload,
+    )
+    .await
     {
         tracing::warn!(error = %e, event_type = %event_type, "bank8:reporting: failed to emit outbox event");
     }
@@ -126,10 +140,20 @@ pub struct ProxyBackResponse {
 
 impl ProxyBackResponse {
     pub fn success(output: serde_json::Value) -> Self {
-        Self { status: "success".into(), output: Some(output), error: None, next_step: None }
+        Self {
+            status: "success".into(),
+            output: Some(output),
+            error: None,
+            next_step: None,
+        }
     }
     pub fn failure(err: impl Into<String>) -> Self {
-        Self { status: "failed".into(), output: None, error: Some(err.into()), next_step: None }
+        Self {
+            status: "failed".into(),
+            output: None,
+            error: Some(err.into()),
+            next_step: None,
+        }
     }
 }
 
@@ -158,7 +182,9 @@ fn row_to_run(row: &sqlx::postgres::PgRow) -> RunResponse {
 /// `GET /v1/health` — service health payload.
 pub async fn health(State(state): State<AppState>) -> impl IntoResponse {
     let db_ok = sqlx::query("SELECT 1").execute(&state.pool).await.is_ok();
-    Json(serde_json::json!({ "status": if db_ok { "ok" } else { "degraded" }, "service": "bank8:reporting" }))
+    Json(
+        serde_json::json!({ "status": if db_ok { "ok" } else { "degraded" }, "service": "bank8:reporting" }),
+    )
 }
 
 // ── Filing obligations ────────────────────────────────────────────────────
@@ -170,7 +196,13 @@ pub async fn list_obligations(
     headers: HeaderMap,
 ) -> Result<Json<Vec<ObligationResponse>>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
-    crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget::new("bank8:reporting:obligations:read")).await?;
+    crate::policy::require(
+        &state.policy,
+        &a,
+        &headers,
+        sentin8::shield::EvalTarget::new("bank8:reporting:obligations:read"),
+    )
+    .await?;
     // Same-transaction discipline (DESIGN.md §5): the tenant context is
     // transaction-local, so context + query share one connection/tx.
     let mut conn = state.pool.begin().await.map_err(crate::errors::err_db)?;
@@ -182,7 +214,9 @@ pub async fn list_obligations(
             ORDER BY next_due ASC LIMIT 200"#,
     )
     .bind(a.env_id())
-    .fetch_all(&mut *conn).await.map_err(crate::errors::err_db)?;
+    .fetch_all(&mut *conn)
+    .await
+    .map_err(crate::errors::err_db)?;
     Ok(Json(rows.iter().map(row_to_obligation).collect()))
 }
 
@@ -196,7 +230,13 @@ pub async fn list_runs(
     Query(q): Query<ListRunsQuery>,
 ) -> Result<Json<Vec<RunResponse>>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
-    crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget::new("bank8:reporting:runs:read")).await?;
+    crate::policy::require(
+        &state.policy,
+        &a,
+        &headers,
+        sentin8::shield::EvalTarget::new("bank8:reporting:runs:read"),
+    )
+    .await?;
     let mut conn = state.pool.begin().await.map_err(crate::errors::err_db)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let rows = sqlx::query(
@@ -207,7 +247,9 @@ pub async fn list_runs(
     )
     .bind(a.env_id())
     .bind(q.status)
-    .fetch_all(&mut *conn).await.map_err(crate::errors::err_db)?;
+    .fetch_all(&mut *conn)
+    .await
+    .map_err(crate::errors::err_db)?;
     Ok(Json(rows.iter().map(row_to_run).collect()))
 }
 
@@ -219,7 +261,13 @@ pub async fn get_run(
     Path(id): Path<Uuid>,
 ) -> Result<Json<RunResponse>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
-    crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget::new("bank8:reporting:runs:read")).await?;
+    crate::policy::require(
+        &state.policy,
+        &a,
+        &headers,
+        sentin8::shield::EvalTarget::new("bank8:reporting:runs:read"),
+    )
+    .await?;
     let mut conn = state.pool.begin().await.map_err(crate::errors::err_db)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let row = sqlx::query(
@@ -228,7 +276,9 @@ pub async fn get_run(
     )
     .bind(id)
     .bind(a.env_id())
-    .fetch_one(&mut *conn).await.map_err(crate::errors::err_db)?;
+    .fetch_one(&mut *conn)
+    .await
+    .map_err(crate::errors::err_db)?;
     Ok(Json(row_to_run(&row)))
 }
 
@@ -241,7 +291,13 @@ pub async fn regenerate_run(
     Path(id): Path<Uuid>,
 ) -> Result<Json<RunResponse>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
-    crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget::new("bank8:reporting:runs:write")).await?;
+    crate::policy::require(
+        &state.policy,
+        &a,
+        &headers,
+        sentin8::shield::EvalTarget::new("bank8:reporting:runs:write"),
+    )
+    .await?;
     let mut conn = state.pool.begin().await.map_err(crate::errors::err_db)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let row = sqlx::query(
@@ -252,13 +308,24 @@ pub async fn regenerate_run(
     )
     .bind(id)
     .bind(a.env_id())
-    .fetch_optional(&mut *conn).await.map_err(crate::errors::err_db)?;
+    .fetch_optional(&mut *conn)
+    .await
+    .map_err(crate::errors::err_db)?;
     let Some(row) = row else {
-        return Err((StatusCode::CONFLICT, "run is already submitted — corrections are amendments".into()));
+        return Err((
+            StatusCode::CONFLICT,
+            "run is already submitted — corrections are amendments".into(),
+        ));
     };
     let run = row_to_run(&row);
     conn.commit().await.map_err(crate::errors::err_db)?;
-    emit_event(&state, a.env_id(), "bank8:reporting:return:updated", serde_json::to_value(&run).unwrap_or_default()).await;
+    emit_event(
+        &state,
+        a.env_id(),
+        "bank8:reporting:return:updated",
+        serde_json::to_value(&run).unwrap_or_default(),
+    )
+    .await;
     Ok(Json(run))
 }
 
@@ -271,7 +338,13 @@ pub async fn list_submissions(
     headers: HeaderMap,
 ) -> Result<Json<Vec<serde_json::Value>>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
-    crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget::new("bank8:reporting:submissions:read")).await?;
+    crate::policy::require(
+        &state.policy,
+        &a,
+        &headers,
+        sentin8::shield::EvalTarget::new("bank8:reporting:submissions:read"),
+    )
+    .await?;
     let mut conn = state.pool.begin().await.map_err(crate::errors::err_db)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let rows = sqlx::query(
@@ -328,7 +401,13 @@ pub async fn calendar_due_check(
     Json(req): Json<CronFireRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
-    crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget::new("bank8:reporting:runs:write")).await?;
+    crate::policy::require(
+        &state.policy,
+        &a,
+        &headers,
+        sentin8::shield::EvalTarget::new("bank8:reporting:runs:write"),
+    )
+    .await?;
 
     let mut tx = state.pool.begin().await.map_err(crate::errors::err_db)?;
     set_tenant_context(&mut tx, req.env_id).await;
@@ -340,7 +419,9 @@ pub async fn calendar_due_check(
             RETURNING id, template_id, period"#,
     )
     .bind(req.env_id)
-    .fetch_all(&mut *tx).await.map_err(crate::errors::err_db)?;
+    .fetch_all(&mut *tx)
+    .await
+    .map_err(crate::errors::err_db)?;
 
     let mut created = 0usize;
     for row in &due {
@@ -348,7 +429,8 @@ pub async fn calendar_due_check(
         let period: String = row.get("period");
         // Create the draft run — idempotent per (obligation, period);
         // the idempotency key stays stable across re-fires.
-        let run_key = req.idempotency_key
+        let run_key = req
+            .idempotency_key
             .clone()
             .unwrap_or_else(|| format!("run:{obligation_id}:{period}"));
         let res = sqlx::query(
@@ -360,7 +442,9 @@ pub async fn calendar_due_check(
         .bind(obligation_id)
         .bind(&period)
         .bind(&run_key)
-        .execute(&mut *tx).await.map_err(crate::errors::err_db)?;
+        .execute(&mut *tx)
+        .await
+        .map_err(crate::errors::err_db)?;
         created += res.rows_affected() as usize;
     }
 
@@ -372,7 +456,13 @@ pub async fn calendar_due_check(
         "env_id": req.env_id,
     });
     if created > 0 {
-        emit_event(&state, req.env_id, "bank8:reporting:return:created", payload.clone()).await;
+        emit_event(
+            &state,
+            req.env_id,
+            "bank8:reporting:return:created",
+            payload.clone(),
+        )
+        .await;
     }
     Ok(Json(payload))
 }

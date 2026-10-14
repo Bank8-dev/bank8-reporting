@@ -7,24 +7,22 @@
 //! Output via `--print-registration` flag. See `sentin8/design/sentin8-service-self-registration-design.md`.
 
 use sentin8::registration::{
-    AdminScope, AdminUi, AdminUiPage, AuditFinding, ErrorCode, M2mGrant, PgRole, Registration,
-    PolicySetDecl, RelationDecl, ScheduleDecl, ServiceActionEntry, SqlMigration,
+    AdminScope, AdminUi, AdminUiPage, AuditFinding, ErrorCode, M2mGrant, PgRole, PolicySetDecl,
+    Registration, RelationDecl, ScheduleDecl, ServiceActionEntry, SqlMigration,
 };
 use utoipa::OpenApi;
 
-const PG_ROLES: &[PgRole] = &[
-    PgRole {
-        scope: "bank8:reporting:read,bank8:reporting:write",
-        role: "bank8_reporting_service",
-        bypass_rls: false,
-        // Grants live in the bank8 vertical database only (DBX §6.6
-        // database-per-vertical, schema-per-service).
-        database: "bank8",
-        // Reporting owns all its reads — inputs arrive as events or
-        // public-API reads, never cross-schema grants.
-        cross_schema_grants: &[],
-    },
-];
+const PG_ROLES: &[PgRole] = &[PgRole {
+    scope: "bank8:reporting:read,bank8:reporting:write",
+    role: "bank8_reporting_service",
+    bypass_rls: false,
+    // Grants live in the bank8 vertical database only (DBX §6.6
+    // database-per-vertical, schema-per-service).
+    database: "bank8",
+    // Reporting owns all its reads — inputs arrive as events or
+    // public-API reads, never cross-schema grants.
+    cross_schema_grants: &[],
+}];
 
 /// M2M DCR scope grants (self-registration design §3.11). One entry per
 /// workload this service registers via DCR; `vertical enroll` upserts
@@ -40,11 +38,21 @@ const PG_ROLES: &[PgRole] = &[
 const M2M_GRANTS: &[M2mGrant] = &[
     M2mGrant {
         workload: "bank8:reporting",
-        scopes: &["sentin8:bus:produce", "sentin8:bus:consume", "sentin8:flow:write", "sentin8:storage:write"],
+        scopes: &[
+            "sentin8:bus:produce",
+            "sentin8:bus:consume",
+            "sentin8:flow:write",
+            "sentin8:storage:write",
+        ],
     },
     M2mGrant {
         workload: "reporting",
-        scopes: &["sentin8:bus:produce", "sentin8:bus:consume", "sentin8:flow:write", "sentin8:storage:write"],
+        scopes: &[
+            "sentin8:bus:produce",
+            "sentin8:bus:consume",
+            "sentin8:flow:write",
+            "sentin8:storage:write",
+        ],
     },
     // Shield hot-reload consumer (policy crate `policy_bus_client`, full
     // colon identity — BUSPOLICY-1: the boot-minted cert is authorized by
@@ -61,7 +69,12 @@ const M2M_GRANTS: &[M2mGrant] = &[
     },
     M2mGrant {
         workload: "reporting-worker",
-        scopes: &["sentin8:bus:consume", "sentin8:flow:read", "sentin8:flow:write", "sentin8:cron:write"],
+        scopes: &[
+            "sentin8:bus:consume",
+            "sentin8:flow:read",
+            "sentin8:flow:write",
+            "sentin8:cron:write",
+        ],
     },
     // Event-driven env-init consumer (event_consumer.rs; consumer group
     // `bank8:reporting:envinit` under the short-form `reporting-envinit`
@@ -83,31 +96,105 @@ const M2M_GRANTS: &[M2mGrant] = &[
 ];
 
 const ADMIN_SCOPES: &[AdminScope] = &[
-    AdminScope::Typed { role: "bank8:reporting:admin", scope: "bank8:reporting:obligations:read" },
-    AdminScope::Typed { role: "bank8:reporting:admin", scope: "bank8:reporting:obligations:write" },
-    AdminScope::Typed { role: "bank8:reporting:admin", scope: "bank8:reporting:runs:read" },
-    AdminScope::Typed { role: "bank8:reporting:admin", scope: "bank8:reporting:runs:write" },
-    AdminScope::Typed { role: "bank8:reporting:admin", scope: "bank8:reporting:submissions:read" },
-    AdminScope::Typed { role: "bank8:reporting:admin", scope: "bank8:reporting:submissions:write" },
+    AdminScope::Typed {
+        role: "bank8:reporting:admin",
+        scope: "bank8:reporting:obligations:read",
+    },
+    AdminScope::Typed {
+        role: "bank8:reporting:admin",
+        scope: "bank8:reporting:obligations:write",
+    },
+    AdminScope::Typed {
+        role: "bank8:reporting:admin",
+        scope: "bank8:reporting:runs:read",
+    },
+    AdminScope::Typed {
+        role: "bank8:reporting:admin",
+        scope: "bank8:reporting:runs:write",
+    },
+    AdminScope::Typed {
+        role: "bank8:reporting:admin",
+        scope: "bank8:reporting:submissions:read",
+    },
+    AdminScope::Typed {
+        role: "bank8:reporting:admin",
+        scope: "bank8:reporting:submissions:write",
+    },
     // Policy-admin surface (policy design §3.6; principles §6.0b per-service scope).
-    AdminScope::Typed { role: "bank8:reporting:admin", scope: "bank8:reporting:policy:read" },
-    AdminScope::Typed { role: "bank8:reporting:admin", scope: "bank8:reporting:policy:write" },
+    AdminScope::Typed {
+        role: "bank8:reporting:admin",
+        scope: "bank8:reporting:policy:read",
+    },
+    AdminScope::Typed {
+        role: "bank8:reporting:admin",
+        scope: "bank8:reporting:policy:write",
+    },
 ];
 
 const ERROR_CODES: &[ErrorCode] = &[
-    ErrorCode { enum_name: "ReportingValidationFailed", error_code: "reporting_validation_failed", status_code: 422 },
-    ErrorCode { enum_name: "ReportingAlreadySubmitted", error_code: "reporting_already_submitted", status_code: 409 },
+    ErrorCode {
+        enum_name: "ReportingValidationFailed",
+        error_code: "reporting_validation_failed",
+        status_code: 422,
+    },
+    ErrorCode {
+        enum_name: "ReportingAlreadySubmitted",
+        error_code: "reporting_already_submitted",
+        status_code: 409,
+    },
 ];
 
 const ADMIN_UI_PAGES: &[AdminUiPage] = &[
-    AdminUiPage { route: "overview", label: "Overview", ui_endpoint: "/v1/admin/ui/overview", data_endpoint: "/v1/admin/overview", icon: "0xe1b1" },
-    AdminUiPage { route: "calendar", label: "Calendar", ui_endpoint: "/v1/admin/ui/calendar", data_endpoint: "/v1/admin/overview", icon: "0xe3c9" },
-    AdminUiPage { route: "runs", label: "Runs", ui_endpoint: "/v1/admin/ui/runs", data_endpoint: "/v1/admin/overview", icon: "0xf06be" },
+    AdminUiPage {
+        route: "overview",
+        label: "Overview",
+        ui_endpoint: "/v1/admin/ui/overview",
+        data_endpoint: "/v1/admin/overview",
+        icon: "0xe1b1",
+    },
+    AdminUiPage {
+        route: "calendar",
+        label: "Calendar",
+        ui_endpoint: "/v1/admin/ui/calendar",
+        data_endpoint: "/v1/admin/overview",
+        icon: "0xe3c9",
+    },
+    AdminUiPage {
+        route: "runs",
+        label: "Runs",
+        ui_endpoint: "/v1/admin/ui/runs",
+        data_endpoint: "/v1/admin/overview",
+        icon: "0xf06be",
+    },
     // Sentin8:Policy admin surface (§3.6, post pattern).
-    AdminUiPage { route: "policy-sets", label: "Policy Sets", ui_endpoint: "/v1/admin/ui/policy-sets", data_endpoint: "/v1/admin/policy-sets", icon: "0xe8b8" },
-    AdminUiPage { route: "policy-decisions", label: "Policy Decisions", ui_endpoint: "/v1/admin/ui/policy-decisions", data_endpoint: "/v1/admin/policy-decisions", icon: "0xf070" },
-    AdminUiPage { route: "relations", label: "Relations", ui_endpoint: "/v1/admin/ui/relations", data_endpoint: "/v1/admin/relations", icon: "0xe572" },
-    AdminUiPage { route: "attributes", label: "Attributes", ui_endpoint: "/v1/admin/ui/attributes", data_endpoint: "/v1/admin/attributes", icon: "0xe8d3" },
+    AdminUiPage {
+        route: "policy-sets",
+        label: "Policy Sets",
+        ui_endpoint: "/v1/admin/ui/policy-sets",
+        data_endpoint: "/v1/admin/policy-sets",
+        icon: "0xe8b8",
+    },
+    AdminUiPage {
+        route: "policy-decisions",
+        label: "Policy Decisions",
+        ui_endpoint: "/v1/admin/ui/policy-decisions",
+        data_endpoint: "/v1/admin/policy-decisions",
+        icon: "0xf070",
+    },
+    AdminUiPage {
+        route: "relations",
+        label: "Relations",
+        ui_endpoint: "/v1/admin/ui/relations",
+        data_endpoint: "/v1/admin/relations",
+        icon: "0xe572",
+    },
+    AdminUiPage {
+        route: "attributes",
+        label: "Attributes",
+        ui_endpoint: "/v1/admin/ui/attributes",
+        data_endpoint: "/v1/admin/attributes",
+        icon: "0xe8d3",
+    },
 ];
 
 /// Default declarative policy set (Sentin8:Policy design §3.2/§3.4,
@@ -172,19 +259,18 @@ const AUDIT_FINDINGS: &[AuditFinding] = &[
     },
 ];
 
-const SERVICE_ACTIONS: &[ServiceActionEntry] = &[
-    ServiceActionEntry {
-        action: "reporting_run_regenerate",
-        service_type: "bank8:reporting",
-        platform_domain_key: "bank8:reporting",
-        method: "POST",
-        endpoint: "/v1/runs",
-        scope: "bank8:reporting:runs:write",
-    },
-];
+const SERVICE_ACTIONS: &[ServiceActionEntry] = &[ServiceActionEntry {
+    action: "reporting_run_regenerate",
+    service_type: "bank8:reporting",
+    platform_domain_key: "bank8:reporting",
+    method: "POST",
+    endpoint: "/v1/runs",
+    scope: "bank8:reporting:runs:write",
+}];
 
 fn openapi_spec() -> serde_json::Value {
-    serde_json::to_value(crate::openapi::ReportingOpenApi::openapi()).unwrap_or(serde_json::Value::Null)
+    serde_json::to_value(crate::openapi::ReportingOpenApi::openapi())
+        .unwrap_or(serde_json::Value::Null)
 }
 
 /// Print the registration JSON to stdout.
@@ -203,24 +289,24 @@ pub fn print(section: Option<String>) -> anyhow::Result<()> {
         // Filing-calendar due-check (SDD §2.4): daily 00:05 sweep — Cron
         // owns timing, reporting owns correctness. Provisioned at enroll;
         // fires the internal due-check route.
-        schedules: &[
-            ScheduleDecl {
-                schedule_type: "filing-calendar-due-check",
-                cron_expression: "5 0 * * *",
-                timezone: "UTC",
-                target_config: r#"{"internalPath": "/v1/internal/calendar", "scheduleType": "filing-calendar-due-check"}"#,
-                max_retries: 3,
-            },
-        ],
+        schedules: &[ScheduleDecl {
+            schedule_type: "filing-calendar-due-check",
+            cron_expression: "5 0 * * *",
+            timezone: "UTC",
+            target_config: r#"{"internalPath": "/v1/internal/calendar", "scheduleType": "filing-calendar-due-check"}"#,
+            max_retries: 3,
+        }],
         admin_ui: Some(AdminUi {
             label: "Reporting",
             icon: "0xe3c9",
             service_flag: "reporting",
             pages: ADMIN_UI_PAGES,
         }),
-        sql_migrations: vec![
-            SqlMigration { version: 1, name: "init", sql: SQL_1_INIT },
-        ],
+        sql_migrations: vec![SqlMigration {
+            version: 1,
+            name: "init",
+            sql: SQL_1_INIT,
+        }],
         audit_findings: Some(AUDIT_FINDINGS),
         service_actions: Some(SERVICE_ACTIONS),
         m2m_grants: Some(M2M_GRANTS),

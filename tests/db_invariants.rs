@@ -37,14 +37,19 @@ async fn seed_template(pool: &PgPool) -> Option<(Uuid, Uuid)> {
            VALUES ('XX', '{}') ON CONFLICT (country_code) DO UPDATE SET metadata = '{}'
            RETURNING id"#,
     )
-    .fetch_one(pool).await.ok()?;
+    .fetch_one(pool)
+    .await
+    .ok()?;
     let rid = sqlx::query_scalar::<_, Uuid>(
         r#"INSERT INTO reporting.regulators (jurisdiction_id, name, authority_kind)
            VALUES ($1, 'test-prudential-authority', 'prudential')
            ON CONFLICT (jurisdiction_id, name) DO UPDATE SET name = EXCLUDED.name
            RETURNING id"#,
     )
-    .bind(jid).fetch_one(pool).await.ok()?;
+    .bind(jid)
+    .fetch_one(pool)
+    .await
+    .ok()?;
     let tid = sqlx::query_scalar::<_, Uuid>(
         r#"INSERT INTO reporting.return_templates (regulator_id, return_code, output_format, cadence, definition)
            VALUES ($1, 'test-return', 'XBRL', 'quarterly', '{"family": "capital"}')
@@ -59,15 +64,21 @@ async fn seed_template(pool: &PgPool) -> Option<(Uuid, Uuid)> {
 /// rejected — the RLS backstop is live on filing_obligations.
 #[tokio::test]
 async fn obligation_insert_without_context_rejected() {
-    let Some(pool) = test_pool().await else { return; };
-    let Some((_jid, tid)) = seed_template(&pool).await else { return; };
+    let Some(pool) = test_pool().await else {
+        return;
+    };
+    let Some((_jid, tid)) = seed_template(&pool).await else {
+        return;
+    };
     let env_id = Uuid::new_v4();
     let res = sqlx::query(
         r#"INSERT INTO filing_obligations (env_id, template_id, period, next_due)
            VALUES ($1, $2, 'NOCTX', now())"#,
     )
-    .bind(env_id).bind(tid)
-    .execute(&pool).await;
+    .bind(env_id)
+    .bind(tid)
+    .execute(&pool)
+    .await;
     assert!(res.is_err(), "context-less insert must violate FORCE RLS");
 }
 
@@ -76,21 +87,41 @@ async fn obligation_insert_without_context_rejected() {
 /// is a no-op under ON CONFLICT.
 #[tokio::test]
 async fn obligation_seed_is_idempotent() {
-    let Some(pool) = test_pool().await else { return; };
-    let Some((_jid, tid)) = seed_template(&pool).await else { return; };
+    let Some(pool) = test_pool().await else {
+        return;
+    };
+    let Some((_jid, tid)) = seed_template(&pool).await else {
+        return;
+    };
     let env_id = Uuid::new_v4();
     let mut tx = pool.begin().await.expect("tx");
     let _ = sqlx::query("SELECT sentin8_set_tenant_context($1, '', 'm2m', 'sys:admin')")
-        .bind(env_id).execute(&mut *tx).await;
+        .bind(env_id)
+        .execute(&mut *tx)
+        .await;
 
     let sql = r#"INSERT INTO filing_obligations (env_id, template_id, period, next_due, status)
                  VALUES ($1, $2, '2030Q1', now() + interval '30 days', 'scheduled')
                  ON CONFLICT (env_id, template_id, period) DO NOTHING"#;
-    let first = sqlx::query(sql).bind(env_id).bind(tid).execute(&mut *tx).await.expect("first insert");
-    let second = sqlx::query(sql).bind(env_id).bind(tid).execute(&mut *tx).await.expect("second insert");
+    let first = sqlx::query(sql)
+        .bind(env_id)
+        .bind(tid)
+        .execute(&mut *tx)
+        .await
+        .expect("first insert");
+    let second = sqlx::query(sql)
+        .bind(env_id)
+        .bind(tid)
+        .execute(&mut *tx)
+        .await
+        .expect("second insert");
     tx.commit().await.expect("commit");
     assert_eq!(first.rows_affected(), 1);
-    assert_eq!(second.rows_affected(), 0, "re-fired calendar must NOT double-create");
+    assert_eq!(
+        second.rows_affected(),
+        0,
+        "re-fired calendar must NOT double-create"
+    );
 }
 
 /// The guarded state machine: `draft → generated` via a guarded UPDATE
@@ -98,33 +129,64 @@ async fn obligation_seed_is_idempotent() {
 /// 0-row no-op (the at-most-once / effectively-once invariant §8).
 #[tokio::test]
 async fn guarded_step_transition_is_effectively_once() {
-    let Some(pool) = test_pool().await else { return; };
-    let Some((_jid, tid)) = seed_template(&pool).await else { return; };
+    let Some(pool) = test_pool().await else {
+        return;
+    };
+    let Some((_jid, tid)) = seed_template(&pool).await else {
+        return;
+    };
     let env_id = Uuid::new_v4();
     let mut tx = pool.begin().await.expect("tx");
     let _ = sqlx::query("SELECT sentin8_set_tenant_context($1, '', 'm2m', 'sys:admin')")
-        .bind(env_id).execute(&mut *tx).await;
+        .bind(env_id)
+        .execute(&mut *tx)
+        .await;
     let oid = sqlx::query_scalar::<_, Uuid>(
         r#"INSERT INTO filing_obligations (env_id, template_id, period, next_due, status)
            VALUES ($1, $2, '2030Q2', now() + interval '30 days', 'due') RETURNING id"#,
-    ).bind(env_id).bind(tid).fetch_one(&mut *tx).await.expect("obligation");
+    )
+    .bind(env_id)
+    .bind(tid)
+    .fetch_one(&mut *tx)
+    .await
+    .expect("obligation");
     let run_id = sqlx::query_scalar::<_, Uuid>(
         r#"INSERT INTO filing_runs (env_id, obligation_id, period, status, idempotency_key)
            VALUES ($1, $2, '2030Q2', 'draft', 'gk-1') RETURNING id"#,
-    ).bind(env_id).bind(oid).fetch_one(&mut *tx).await.expect("run");
+    )
+    .bind(env_id)
+    .bind(oid)
+    .fetch_one(&mut *tx)
+    .await
+    .expect("run");
 
     // Guarded transition (the advance_run shape: $1 env, $2 new status,
     // $3 run id, $4.. from-states).
     let sql = r#"UPDATE filing_runs SET status = $2, updated_at = now()
                  WHERE env_id = $1 AND id = $3 AND status IN ($4)
                  RETURNING id, status"#;
-    let first = sqlx::query(sql).bind(env_id).bind("generated").bind(run_id).bind("draft")
-        .fetch_optional(&mut *tx).await.expect("first advance");
-    let replay = sqlx::query(sql).bind(env_id).bind("generated").bind(run_id).bind("draft")
-        .fetch_optional(&mut *tx).await.expect("replay");
+    let first = sqlx::query(sql)
+        .bind(env_id)
+        .bind("generated")
+        .bind(run_id)
+        .bind("draft")
+        .fetch_optional(&mut *tx)
+        .await
+        .expect("first advance");
+    let replay = sqlx::query(sql)
+        .bind(env_id)
+        .bind("generated")
+        .bind(run_id)
+        .bind("draft")
+        .fetch_optional(&mut *tx)
+        .await
+        .expect("replay");
     tx.commit().await.expect("commit");
     assert!(first.is_some(), "the legal transition advances once");
-    assert!(replay.is_none(), "the replay is a 0-row no-op (effectively-once)");
+    assert!(
+        replay.is_none(),
+        "the replay is a 0-row no-op (effectively-once)"
+    );
 }
 
 /// Terminal states never regress: submitted → acknowledged holds; no
@@ -132,20 +194,36 @@ async fn guarded_step_transition_is_effectively_once() {
 /// amendments, never mutations — §8).
 #[tokio::test]
 async fn terminal_states_never_regress() {
-    let Some(pool) = test_pool().await else { return; };
-    let Some((_jid, tid)) = seed_template(&pool).await else { return; };
+    let Some(pool) = test_pool().await else {
+        return;
+    };
+    let Some((_jid, tid)) = seed_template(&pool).await else {
+        return;
+    };
     let env_id = Uuid::new_v4();
     let mut tx = pool.begin().await.expect("tx");
     let _ = sqlx::query("SELECT sentin8_set_tenant_context($1, '', 'm2m', 'sys:admin')")
-        .bind(env_id).execute(&mut *tx).await;
+        .bind(env_id)
+        .execute(&mut *tx)
+        .await;
     let oid = sqlx::query_scalar::<_, Uuid>(
         r#"INSERT INTO filing_obligations (env_id, template_id, period, next_due, status)
            VALUES ($1, $2, '2030Q3', now() + interval '30 days', 'due') RETURNING id"#,
-    ).bind(env_id).bind(tid).fetch_one(&mut *tx).await.expect("obligation");
+    )
+    .bind(env_id)
+    .bind(tid)
+    .fetch_one(&mut *tx)
+    .await
+    .expect("obligation");
     let run_id = sqlx::query_scalar::<_, Uuid>(
         r#"INSERT INTO filing_runs (env_id, obligation_id, period, status, idempotency_key)
            VALUES ($1, $2, '2030Q3', 'acknowledged', 'gk-2') RETURNING id"#,
-    ).bind(env_id).bind(oid).fetch_one(&mut *tx).await.expect("run");
+    )
+    .bind(env_id)
+    .bind(oid)
+    .fetch_one(&mut *tx)
+    .await
+    .expect("run");
 
     // The regenerate guard: acknowledged runs are excluded from any
     // draft-reset.
@@ -154,10 +232,17 @@ async fn terminal_states_never_regress() {
             WHERE env_id = $1 AND id = $2 AND status NOT IN ('submitted', 'acknowledged')
             RETURNING id"#,
     )
-    .bind(env_id).bind(run_id)
-    .execute(&mut *tx).await.expect("regenerate guard");
+    .bind(env_id)
+    .bind(run_id)
+    .execute(&mut *tx)
+    .await
+    .expect("regenerate guard");
     tx.commit().await.expect("commit");
-    assert_eq!(blocked.rows_affected(), 0, "an acknowledged run never regresses to draft");
+    assert_eq!(
+        blocked.rows_affected(),
+        0,
+        "an acknowledged run never regresses to draft"
+    );
 }
 
 /// The AML filing path's idempotency: an (obligation NULL, period
@@ -165,19 +250,39 @@ async fn terminal_states_never_regress() {
 /// (case, report kind).
 #[tokio::test]
 async fn aml_filing_run_is_idempotent_per_case() {
-    let Some(pool) = test_pool().await else { return; };
+    let Some(pool) = test_pool().await else {
+        return;
+    };
     let env_id = Uuid::new_v4();
     let mut tx = pool.begin().await.expect("tx");
     let _ = sqlx::query("SELECT sentin8_set_tenant_context($1, '', 'm2m', 'sys:admin')")
-        .bind(env_id).execute(&mut *tx).await;
+        .bind(env_id)
+        .execute(&mut *tx)
+        .await;
 
     let case_key = "aml:00000000-0000-0000-0000-0000000000aa";
     let sql = r#"INSERT INTO filing_runs (env_id, obligation_id, period, status, idempotency_key)
                  VALUES ($1, NULL, $2, 'draft', $3)
                  ON CONFLICT (obligation_id, period) DO NOTHING"#;
-    let first = sqlx::query(sql).bind(env_id).bind(case_key).bind("aml:case-sar").execute(&mut *tx).await.expect("first");
-    let second = sqlx::query(sql).bind(env_id).bind(case_key).bind("aml:case-sar").execute(&mut *tx).await.expect("second");
+    let first = sqlx::query(sql)
+        .bind(env_id)
+        .bind(case_key)
+        .bind("aml:case-sar")
+        .execute(&mut *tx)
+        .await
+        .expect("first");
+    let second = sqlx::query(sql)
+        .bind(env_id)
+        .bind(case_key)
+        .bind("aml:case-sar")
+        .execute(&mut *tx)
+        .await
+        .expect("second");
     tx.commit().await.expect("commit");
     assert_eq!(first.rows_affected(), 1);
-    assert_eq!(second.rows_affected(), 0, "redelivered suspicious:detected must NOT double-file");
+    assert_eq!(
+        second.rows_affected(),
+        0,
+        "redelivered suspicious:detected must NOT double-file"
+    );
 }

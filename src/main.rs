@@ -33,7 +33,7 @@ async fn main() -> anyhow::Result<()> {
             .with_registration(registration::print)
             .with_state(server::build_state)
             .with_own_health()
-            .with_router(|router, state| server::routes(router, state))
+            .with_router(server::routes)
             .with_openapi(openapi::ReportingOpenApi::openapi()),
     )
     .await

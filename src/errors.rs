@@ -29,7 +29,12 @@ pub struct ReportingErrorResponse {
 
 impl ReportingErrorResponse {
     pub fn new(status: u16, code: impl Into<String>, message: impl Into<String>) -> Self {
-        Self { status_code: status, error_code: code.into(), message: message.into(), details: None }
+        Self {
+            status_code: status,
+            error_code: code.into(),
+            message: message.into(),
+            details: None,
+        }
     }
 
     pub fn with_details(mut self, details: serde_json::Value) -> Self {
@@ -56,8 +61,8 @@ impl ReportingErrorResponse {
 
 impl IntoResponse for ReportingErrorResponse {
     fn into_response(self) -> Response {
-        let status = StatusCode::from_u16(self.status_code)
-            .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+        let status =
+            StatusCode::from_u16(self.status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
         (status, Json(self)).into_response()
     }
 }
