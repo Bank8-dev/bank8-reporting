@@ -1,0 +1,20 @@
+{
+  "vertical": "bank8",
+  "services": [
+    {
+      "service_type": "bank8:reporting",
+      "event_triggers": [
+        {
+          "event_type": "bank8:compliance:suspicious:detected",
+          "consumer_group": "bank8:reporting:filing",
+          "action": "file_suspicious_activity"
+        },
+        {
+          "event_type": "sentin8:sys:service:updated",
+          "consumer_group": "bank8:reporting:envinit",
+          "action": "seed_registry"
+        }
+      ]
+    }
+  ]
+}
