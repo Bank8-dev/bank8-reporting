@@ -1,0 +1,279 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "bank8-reporting",
+    "description": "Sentin8 Bank8:Reporting — regulatory filing calendar, generation, packaging, submission.",
+    "license": {
+      "name": "MIT OR Apache-2.0",
+      "identifier": "MIT OR Apache-2.0"
+    },
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/v1/obligations": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "`GET /v1/obligations` — list filing obligations for the tenant env.",
+        "operationId": "list_obligations",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ObligationResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/runs": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "`GET /v1/runs` — list filing runs, optionally by status.",
+        "operationId": "list_runs",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RunResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/runs/{id}": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "`GET /v1/runs/{id}` — filing run detail.",
+        "operationId": "get_run",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/runs/{id}/regenerate": {
+      "post": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "`POST /v1/runs/{id}/regenerate` — reset a non-submitted run to draft\n(guarded: terminal states never regress; corrections are amendments).",
+        "operationId": "regenerate_run",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/v1/submissions": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "`GET /v1/submissions` — list submissions for the tenant env.",
+        "operationId": "list_submissions",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ListRunsQuery": {
+        "type": "object",
+        "description": "Query for listing filing runs.",
+        "properties": {
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ObligationResponse": {
+        "type": "object",
+        "description": "A filing obligation as returned by the obligation reads.",
+        "required": [
+          "id",
+          "template_id",
+          "period",
+          "next_due",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "next_due": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "period": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "template_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "ProxyBackRequest": {
+        "type": "object",
+        "description": "Request body for the Flow proxy-back `POST /v1/internal/steps/execute`.",
+        "required": [
+          "step_kind",
+          "workflow_id",
+          "step_name",
+          "input",
+          "user_data"
+        ],
+        "properties": {
+          "input": {},
+          "step_config": {},
+          "step_kind": {
+            "type": "string"
+          },
+          "step_name": {
+            "type": "string"
+          },
+          "user_data": {},
+          "workflow_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "ProxyBackResponse": {
+        "type": "object",
+        "description": "Response from the proxy-back handler.",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "next_step": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "output": {},
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "RunResponse": {
+        "type": "object",
+        "description": "A filing run as returned by the run reads.",
+        "required": [
+          "id",
+          "obligation_id",
+          "period",
+          "status"
+        ],
+        "properties": {
+          "artifact_ref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "obligation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "period": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "security": [],
+  "tags": [
+    {
+      "name": "reporting",
+      "description": "Bank8:Reporting — regulatory filing calendar, generation, packaging, submission"
+    }
+  ]
+}
