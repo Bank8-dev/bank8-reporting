@@ -180,10 +180,14 @@ fn row_to_run(row: &sqlx::postgres::PgRow) -> RunResponse {
 // ── Health ────────────────────────────────────────────────────────────────
 
 /// `GET /v1/health` — service health payload.
+///
+/// Carries the binary's build identity (`version`/`build`, BUILDID-1) so
+/// captain's monitor populates `make status`'s VERSION column for every
+/// instance — the consuming BINARY's identity, never a shared crate's.
 pub async fn health(State(state): State<AppState>) -> impl IntoResponse {
     let db_ok = sqlx::query("SELECT 1").execute(&state.pool).await.is_ok();
     Json(
-        serde_json::json!({ "status": if db_ok { "ok" } else { "degraded" }, "service": "bank8:reporting" }),
+        serde_json::json!({ "status": if db_ok { "ok" } else { "degraded" }, "service": "bank8:reporting", "version": sentin8::build_info::id(), "build": sentin8::build_info::build_hash() }),
     )
 }
 
