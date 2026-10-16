@@ -14,7 +14,11 @@
           "consumer_group": "bank8:reporting:envinit",
           "action": "seed_registry"
         }
-      ]
+      ],
+      "telemetry_property": {
+        "slug": "reporting",
+        "name": "Bank8:Reporting Telemetry"
+      }
     }
   ]
 }
