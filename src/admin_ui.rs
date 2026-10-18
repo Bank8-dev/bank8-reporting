@@ -22,6 +22,20 @@ use crate::handlers::{set_tenant_context, AppState};
 
 /// GET /v1/admin/ui/{page} — return the RFW definition for the requested
 /// admin page.
+#[utoipa::path(
+    get,
+    path = "/v1/admin/ui/{page}",
+    params(
+        ("page" = String, Path, description = "RFW page name"),
+        ("target_env_id" = String, Query, description = "Target env (RLS context)")
+    ),
+    responses(
+        (status = 200, description = "RFW page definition", body = serde_json::Value),
+        (status = 403, description = "Caller lacks the admin scope"),
+    ),
+    security(("bank8:admin" = [])),
+    tag = "admin-ui",
+)]
 pub async fn get_admin_ui(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -101,6 +115,17 @@ fn runs_page() -> AdminUiPage {
 
 /// GET /v1/admin/overview — the data endpoint behind the overview page:
 /// obligation/run/submission counts for the tenant env.
+#[utoipa::path(
+    get,
+    path = "/v1/admin/overview",
+    params(("target_env_id" = String, Query, description = "Target env (RLS context)")),
+    responses(
+        (status = 200, description = "obligation/run/submission counts", body = serde_json::Value),
+        (status = 403, description = "Caller lacks the admin scope"),
+    ),
+    security(("bank8:admin" = [])),
+    tag = "admin-ui",
+)]
 pub async fn admin_overview(
     State(state): State<AppState>,
     headers: HeaderMap,

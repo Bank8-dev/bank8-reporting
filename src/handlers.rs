@@ -179,6 +179,15 @@ fn row_to_run(row: &sqlx::postgres::PgRow) -> RunResponse {
 
 // ── Health ────────────────────────────────────────────────────────────────
 
+#[utoipa::path(
+    get,
+    path = "/v1/health",
+    responses(
+        (status = 200, description = "Liveness (version, build)"),
+    ),
+    security(),
+    tag = "meta",
+)]
 /// `GET /v1/health` — service health payload.
 ///
 /// Carries the binary's build identity (`version`/`build`, BUILDID-1) so
@@ -399,6 +408,16 @@ pub struct CronFireRequest {
 /// is granted `bank8:reporting:runs:write` in this service's registration
 /// (the ledger-storage precedent), so the same Shield gate every human
 /// mutation passes also gates the scheduled fire — no bypass.
+#[utoipa::path(
+    post,
+    path = "/v1/internal/calendar/schedules/run",
+    request_body = serde_json::Value,
+    responses(
+        (status = 200, description = "Filing-calendar due check completed"),
+    ),
+    security(),
+    tag = "internal",
+)]
 pub async fn calendar_due_check(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -479,6 +498,16 @@ pub async fn calendar_due_check(
 /// event-triggered, the proxy-back is their data access). The env rides
 /// the step input (Flow records it at workflow creation); the dispatch
 /// owns the guarded state transitions.
+#[utoipa::path(
+    post,
+    path = "/v1/internal/steps/execute",
+    request_body = serde_json::Value,
+    responses(
+        (status = 200, description = "Step executed", body = serde_json::Value),
+    ),
+    security(),
+    tag = "internal",
+)]
 pub async fn execute_step(
     State(state): State<AppState>,
     headers: HeaderMap,

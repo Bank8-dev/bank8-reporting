@@ -1,0 +1,431 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "bank8-reporting",
+    "description": "Sentin8 Bank8:Reporting — regulatory filing calendar, generation, packaging, submission.",
+    "license": {
+      "name": "MIT OR Apache-2.0",
+      "identifier": "MIT OR Apache-2.0"
+    },
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/v1/admin/overview": {
+      "get": {
+        "tags": [
+          "admin-ui"
+        ],
+        "summary": "GET /v1/admin/overview — the data endpoint behind the overview page:\nobligation/run/submission counts for the tenant env.",
+        "operationId": "admin_overview",
+        "parameters": [
+          {
+            "name": "target_env_id",
+            "in": "query",
+            "description": "Target env (RLS context)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "obligation/run/submission counts",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "403": {
+            "description": "Caller lacks the admin scope"
+          }
+        },
+        "security": [
+          {
+            "bank8:admin": []
+          }
+        ]
+      }
+    },
+    "/v1/admin/ui/{page}": {
+      "get": {
+        "tags": [
+          "admin-ui"
+        ],
+        "summary": "GET /v1/admin/ui/{page} — return the RFW definition for the requested\nadmin page.",
+        "operationId": "get_admin_ui",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "path",
+            "description": "RFW page name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "target_env_id",
+            "in": "query",
+            "description": "Target env (RLS context)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "RFW page definition",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "403": {
+            "description": "Caller lacks the admin scope"
+          }
+        },
+        "security": [
+          {
+            "bank8:admin": []
+          }
+        ]
+      }
+    },
+    "/v1/health": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "`GET /v1/health` — service health payload.",
+        "description": "Carries the binary's build identity (`version`/`build`, BUILDID-1) so\ncaptain's monitor populates `make status`'s VERSION column for every\ninstance — the consuming BINARY's identity, never a shared crate's.",
+        "operationId": "health",
+        "responses": {
+          "200": {
+            "description": "Liveness (version, build)"
+          }
+        },
+        "security": []
+      }
+    },
+    "/v1/internal/calendar/schedules/run": {
+      "post": {
+        "tags": [
+          "internal"
+        ],
+        "summary": "`POST /v1/internal/calendar/schedules/run` — Cron fires this daily.\nMarks due obligations and creates their filing runs — idempotent per\n(obligation, period): the unique index is the dedupe floor, so a\nre-fired calendar never double-creates (reporting DESIGN.md §5/§8).\nCron owns timing; this owns correctness. The `sentin8:cron` workload\nis granted `bank8:reporting:runs:write` in this service's registration\n(the ledger-storage precedent), so the same Shield gate every human\nmutation passes also gates the scheduled fire — no bypass.",
+        "operationId": "calendar_due_check",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Filing-calendar due check completed"
+          }
+        },
+        "security": []
+      }
+    },
+    "/v1/internal/steps/execute": {
+      "post": {
+        "tags": [
+          "internal"
+        ],
+        "summary": "`POST /v1/internal/steps/execute` — Flow proxy-back for filing\nworkflow steps (DESIGN.md §4; the proxy-back contract is one of the\nnarrow internal-API exceptions — the steps are already\nevent-triggered, the proxy-back is their data access). The env rides\nthe step input (Flow records it at workflow creation); the dispatch\nowns the guarded state transitions.",
+        "operationId": "execute_step",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Step executed",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/v1/obligations": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "`GET /v1/obligations` — list filing obligations for the tenant env.",
+        "operationId": "list_obligations",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ObligationResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/runs": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "`GET /v1/runs` — list filing runs, optionally by status.",
+        "operationId": "list_runs",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RunResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/runs/{id}": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "`GET /v1/runs/{id}` — filing run detail.",
+        "operationId": "get_run",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/runs/{id}/regenerate": {
+      "post": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "`POST /v1/runs/{id}/regenerate` — reset a non-submitted run to draft\n(guarded: terminal states never regress; corrections are amendments).",
+        "operationId": "regenerate_run",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/v1/submissions": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "`GET /v1/submissions` — list submissions for the tenant env.",
+        "operationId": "list_submissions",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ListRunsQuery": {
+        "type": "object",
+        "description": "Query for listing filing runs.",
+        "properties": {
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ObligationResponse": {
+        "type": "object",
+        "description": "A filing obligation as returned by the obligation reads.",
+        "required": [
+          "id",
+          "template_id",
+          "period",
+          "next_due",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "next_due": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "period": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "template_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "ProxyBackRequest": {
+        "type": "object",
+        "description": "Request body for the Flow proxy-back `POST /v1/internal/steps/execute`.",
+        "required": [
+          "step_kind",
+          "workflow_id",
+          "step_name",
+          "input",
+          "user_data"
+        ],
+        "properties": {
+          "input": {},
+          "step_config": {},
+          "step_kind": {
+            "type": "string"
+          },
+          "step_name": {
+            "type": "string"
+          },
+          "user_data": {},
+          "workflow_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "ProxyBackResponse": {
+        "type": "object",
+        "description": "Response from the proxy-back handler.",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "next_step": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "output": {},
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "RunResponse": {
+        "type": "object",
+        "description": "A filing run as returned by the run reads.",
+        "required": [
+          "id",
+          "obligation_id",
+          "period",
+          "status"
+        ],
+        "properties": {
+          "artifact_ref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "obligation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "period": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "security": [],
+  "tags": [
+    {
+      "name": "reporting",
+      "description": "Bank8:Reporting — regulatory filing calendar, generation, packaging, submission"
+    }
+  ]
+}
