@@ -345,11 +345,11 @@ pub async fn regenerate_run(
 // ── Submissions ───────────────────────────────────────────────────────────
 
 /// `GET /v1/submissions` - list submissions for the tenant env.
-#[utoipa::path(get, path = "/v1/submissions", responses((status = 200, body = [serde_json::Value])))]
+#[utoipa::path(get, path = "/v1/submissions", responses((status = 200, body = Vec<SubmissionRow>)))]
 pub async fn list_submissions(
     State(state): State<AppState>,
     headers: HeaderMap,
-) -> Result<Json<Vec<serde_json::Value>>, (StatusCode, String)> {
+) -> Result<Json<Vec<SubmissionRow>>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
     crate::policy::require(
         &state.policy,
@@ -369,16 +369,19 @@ pub async fn list_submissions(
     )
     .bind(a.env_id())
     .fetch_all(&mut *conn).await.map_err(crate::errors::err_db)?;
-    let out = rows.iter().map(|r| serde_json::json!({
-        "id": r.get::<Uuid, _>("id"),
-        "run_id": r.get::<Uuid, _>("run_id"),
-        "period": r.get::<String, _>("period"),
-        "run_status": r.get::<String, _>("run_status"),
-        "regulator_ref": r.get::<Option<String>, _>("regulator_ref"),
-        "acknowledgment": r.get::<Option<String>, _>("acknowledgment"),
-        "submitted_at": r.get::<Option<chrono::DateTime<chrono::Utc>>, _>("submitted_at"),
-        "acknowledged_at": r.get::<Option<chrono::DateTime<chrono::Utc>>, _>("acknowledged_at"),
-    })).collect();
+    let out: Vec<SubmissionRow> = rows
+        .iter()
+        .map(|r| SubmissionRow {
+            id: r.get::<Uuid, _>("id"),
+            run_id: r.get::<Uuid, _>("run_id"),
+            period: r.get::<String, _>("period"),
+            run_status: r.get::<String, _>("run_status"),
+            regulator_ref: r.get::<Option<String>, _>("regulator_ref"),
+            acknowledgment: r.get::<Option<String>, _>("acknowledgment"),
+            submitted_at: r.get::<Option<chrono::DateTime<chrono::Utc>>, _>("submitted_at"),
+            acknowledged_at: r.get::<Option<chrono::DateTime<chrono::Utc>>, _>("acknowledged_at"),
+        })
+        .collect();
     Ok(Json(out))
 }
 
@@ -411,9 +414,9 @@ pub struct CronFireRequest {
 #[utoipa::path(
     post,
     path = "/v1/internal/calendar/schedules/run",
-    request_body = serde_json::Value,
+    request_body = CronFireRequest,
     responses(
-        (status = 200, description = "Filing-calendar due check completed"),
+        (status = 200, description = "Filing-calendar due check completed", body = CalendarDueCheckResponse),
     ),
     security(),
     tag = "internal",
@@ -422,7 +425,7 @@ pub async fn calendar_due_check(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(req): Json<CronFireRequest>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Json<CalendarDueCheckResponse>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
     crate::policy::require(
         &state.policy,
@@ -473,17 +476,17 @@ pub async fn calendar_due_check(
 
     tx.commit().await.map_err(crate::errors::err_db)?;
 
-    let payload = serde_json::json!({
-        "obligations_due": due.len(),
-        "runs_created": created,
-        "env_id": req.env_id,
-    });
+    let payload = CalendarDueCheckResponse {
+        obligations_due: due.len(),
+        runs_created: created,
+        env_id: req.env_id,
+    };
     if created > 0 {
         emit_event(
             &state,
             req.env_id,
             "bank8:reporting:return:created",
-            payload.clone(),
+            serde_json::to_value(&payload).unwrap_or_default(),
         )
         .await;
     }
@@ -501,9 +504,9 @@ pub async fn calendar_due_check(
 #[utoipa::path(
     post,
     path = "/v1/internal/steps/execute",
-    request_body = serde_json::Value,
+    request_body = ProxyBackRequest,
     responses(
-        (status = 200, description = "Step executed", body = serde_json::Value),
+        (status = 200, description = "Step executed", body = ProxyBackResponse),
     ),
     security(),
     tag = "internal",
@@ -516,4 +519,42 @@ pub async fn execute_step(
     let _a = auth::verify_token(&state.config, &headers).await?;
     let resp = crate::worker::execute_filing_step(&state.pool, &req).await;
     Ok(Json(resp))
+}
+
+// ── Typed proxy-back replies (OAPEC-9) ──────────────────────────────────
+/// The `POST /v1/internal/calendar/schedules/run` reply.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct CalendarDueCheckResponse {
+    /// Obligations whose period closed in this pass.
+    pub obligations_due: usize,
+    /// Filing runs created.
+    pub runs_created: usize,
+    /// The fired env.
+    pub env_id: uuid::Uuid,
+}
+
+/// One regulatory submission row (`GET /v1/submissions`).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct SubmissionRow {
+    /// The submission row id.
+    pub id: uuid::Uuid,
+    /// The filing run that produced it.
+    pub run_id: uuid::Uuid,
+    /// The filing period.
+    pub period: String,
+    /// Submission status.
+    pub run_status: String,
+    /// The regulator's submission reference.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub regulator_ref: Option<String>,
+    /// The acknowledgment note.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub acknowledgment: Option<String>,
+    /// Sent instant.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub submitted_at: Option<chrono::DateTime<chrono::Utc>>,
+    /// Acknowledged instant.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub acknowledged_at: Option<chrono::DateTime<chrono::Utc>>,
 }

@@ -30,7 +30,7 @@ use crate::handlers::{set_tenant_context, AppState};
         ("target_env_id" = String, Query, description = "Target env (RLS context)")
     ),
     responses(
-        (status = 200, description = "RFW page definition", body = serde_json::Value),
+        (status = 200, description = "RFW page definition", body = sentin8::rfw::AdminUiResponse),
         (status = 403, description = "Caller lacks the admin scope"),
     ),
     security(("bank8:admin" = [])),
@@ -40,7 +40,7 @@ pub async fn get_admin_ui(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(page): Path<String>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, String)> {
+) -> Result<Json<AdminUiResponse>, (axum::http::StatusCode, String)> {
     let _a = auth::verify_token(&state.config, &headers).await?;
     crate::policy::require(
         &state.policy,
@@ -69,9 +69,7 @@ pub async fn get_admin_ui(
         }
     };
 
-    Ok(Json(
-        serde_json::to_value(AdminUiResponse::page(page_def)).unwrap(),
-    ))
+    Ok(Json(AdminUiResponse::page(page_def)))
 }
 
 fn overview_page() -> AdminUiPage {
@@ -120,7 +118,7 @@ fn runs_page() -> AdminUiPage {
     path = "/v1/admin/overview",
     params(("target_env_id" = String, Query, description = "Target env (RLS context)")),
     responses(
-        (status = 200, description = "obligation/run/submission counts", body = serde_json::Value),
+        (status = 200, description = "obligation/run/submission counts", body = sentin8::rfw::policy_pages::AdminDataRows),
         (status = 403, description = "Caller lacks the admin scope"),
     ),
     security(("bank8:admin" = [])),
