@@ -3,15 +3,15 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:Reporting
 // SPDX-License-Identifier: Apache-2.0
 
-//! Reporting embedded filing worker — the durable Bus tier of the
+//! Reporting embedded filing worker - the durable Bus tier of the
 //! access order (membus → bus → owner API; principles §4.7): an
 //! in-process SSE consumer on the `reporting` family that turns
 //! `bank8:reporting:*` events into Flow filing-workflow resume calls,
 //! spawned from `build_state` (the WKR-MERGE embedded-worker precedent
-//! — no separate binary). MemBus is the state-refresh tier, not trigger
+//! - no separate binary). MemBus is the state-refresh tier, not trigger
 //! transport; trigger delivery rides this durable stream.
 //!
-//! Also hosts the Flow step dispatch (`execute_filing_step`) — the
+//! Also hosts the Flow step dispatch (`execute_filing_step`) - the
 //! proxy-back handler in `handlers` delegates here (reporting
 //! DESIGN.md §4).
 
@@ -23,7 +23,7 @@ use uuid::Uuid;
 
 use crate::handlers::{set_tenant_context, AppState, ProxyBackRequest, ProxyBackResponse};
 
-/// Consumer group name — identifies this reporting instance to Sentin8:Bus.
+/// Consumer group name - identifies this reporting instance to Sentin8:Bus.
 const CONSUMER_GROUP: &str = "bank8:reporting:filing";
 
 /// Reconnect delay when the Bus SSE connection drops or an error occurs.
@@ -33,7 +33,7 @@ const RECONNECT_DELAY: Duration = Duration::from_secs(2);
 /// auth DESIGN §4.3f): mint-or-load the Acme-issued pair and wrap it in
 /// a reqwest client. The receiving service's TLS layer authenticates the
 /// handshake and the enroll-published registry map authorizes the
-/// scopes — no bearer token exists on this path.
+/// scopes - no bearer token exists on this path.
 ///
 /// # Errors
 /// Returns the certificate-ensure or transport-build failure (the
@@ -54,12 +54,12 @@ async fn build_workload_http(auth_issuer: &str, workload: &str) -> anyhow::Resul
         .map_err(|e| anyhow::anyhow!("workload '{workload}' transport: {e}"))
 }
 
-/// Shared worker state — the service state clone + Bus/Flow clients.
+/// Shared worker state - the service state clone + Bus/Flow clients.
 struct WorkerState {
     pool: sqlx::PgPool,
     bus: sentin8::bus::client::BusClient,
     stream_family: String,
-    /// `None` when the `reporting-worker` transport is unavailable —
+    /// `None` when the `reporting-worker` transport is unavailable -
     /// Flow re-drive is disabled (fail-closed; no fallback identity
     /// exists).
     flow: Option<sentin8_flow_sdk::client::FlowClient>,
@@ -67,14 +67,14 @@ struct WorkerState {
 
 /// Spawn the embedded filing worker (called once from
 /// `server::build_state`). The worker owns the service's single outbound
-/// identity: the `reporting-worker` workload CERTIFICATE (CERTFREE-4V —
+/// identity: the `reporting-worker` workload CERTIFICATE (CERTFREE-4V -
 /// no DCR, no token; single identity plane, principles §4.1) resolves
-/// Bus + Flow access. A missing transport fails closed — Flow calls are
+/// Bus + Flow access. A missing transport fails closed - Flow calls are
 /// disabled with an ERROR and the SSE loop still runs; there is no
 /// token fallback, ever.
 pub async fn spawn(state: &AppState) {
     // Cert-presenting Bus client (CERTFREE-4V): the `reporting-worker`
-    // workload CERTIFICATE is the identity — no DCR, no token (auth DESIGN
+    // workload CERTIFICATE is the identity - no DCR, no token (auth DESIGN
     // §4.3f); the mint retries while the fleet boots.
     let bus = loop {
         match sentin8::bus::client::BusClient::for_workload(
@@ -94,10 +94,10 @@ pub async fn spawn(state: &AppState) {
 
     // Cert-presenting Flow identity (CERTFREE-4V): the `reporting-worker`
     // workload certificate re-drives filing workflows via
-    // `resume`/`retry` — the TLS handshake IS the identity; the registry
+    // `resume`/`retry` - the TLS handshake IS the identity; the registry
     // map authorizes the flow scopes (registration.rs::M2M_GRANTS). One
     // transport feeds BOTH the FlowClient and the step-handler profile
-    // registration below. A missing transport is fatal for Flow access —
+    // registration below. A missing transport is fatal for Flow access -
     // the identity cannot be sourced anywhere else (no fallback).
     let flow = match build_workload_http(&state.config.sentin8_auth_issuer, "reporting-worker")
         .await
@@ -105,7 +105,7 @@ pub async fn spawn(state: &AppState) {
         Ok(http) => {
             // Register the reporting step-handler profile with Flow using
             // the same identity (the Flow registration contract, reporting
-            // DESIGN.md §2). Best-effort — an outage at boot retries on the
+            // DESIGN.md §2). Best-effort - an outage at boot retries on the
             // worker's next Flow re-drive, never blocks serving.
             let self_url = format!("http://0.0.0.0:{}", state.config.port);
             if let Err(e) =
@@ -121,7 +121,7 @@ pub async fn spawn(state: &AppState) {
         Err(e) => {
             tracing::error!(
                 error = %e,
-                "reporting-worker: Flow transport unavailable — Flow re-drive disabled (no fallback identity exists)"
+                "reporting-worker: Flow transport unavailable - Flow re-drive disabled (no fallback identity exists)"
             );
             None
         }
@@ -139,11 +139,11 @@ pub async fn spawn(state: &AppState) {
     });
 
     // Filing-calendar due-check (SDD §2.4): declared in the
-    // registration's `schedules` section — provisioned by
+    // registration's `schedules` section - provisioned by
     // `vertical enroll`, fired by cron. No boot-time cron calls.
 }
 
-/// SSE consumer loop — connect to Bus, receive pushed messages, process
+/// SSE consumer loop - connect to Bus, receive pushed messages, process
 /// each filing event (idempotently), ACK on success, nack on failure so
 /// Bus tracks retries/DLQ, reconnect with a 2s backoff.
 async fn sse_consume_loop(state: Arc<WorkerState>) {
@@ -204,7 +204,7 @@ async fn sse_consume_loop(state: Arc<WorkerState>) {
                 };
 
                 let message_id = msg["message_id"].as_str().unwrap_or("").to_string();
-                // The envelope carries the producer's tenant env — the RLS
+                // The envelope carries the producer's tenant env - the RLS
                 // context for this event's guarded writes (the WKR-TX1
                 // per-event context pattern).
                 let env_id = msg["env_id"].as_str().unwrap_or("").to_string();
@@ -221,7 +221,7 @@ async fn sse_consume_loop(state: Arc<WorkerState>) {
                     Err(e) => {
                         tracing::warn!(error = %e, message_id = %message_id, "reporting-worker: filing event failed; nacking for retry/DLQ");
                         // Nack so Bus tracks retries / DLQ (the Option is
-                        // the retry delay — None takes the default), then
+                        // the retry delay - None takes the default), then
                         // ACK to move on (the DLQ handles poison
                         // messages).
                         let _ = state
@@ -237,15 +237,15 @@ async fn sse_consume_loop(state: Arc<WorkerState>) {
             }
         }
 
-        tracing::info!(stream_family = %state.stream_family, "reporting-worker: bus SSE disconnected — reconnecting");
+        tracing::info!(stream_family = %state.stream_family, "reporting-worker: bus SSE disconnected - reconnecting");
         tokio::time::sleep(RECONNECT_DELAY).await;
     }
 }
 
-/// Process one filing event (durable Bus tier — reporting DESIGN.md §4):
+/// Process one filing event (durable Bus tier - reporting DESIGN.md §4):
 /// - `bank8:compliance:suspicious:detected` → the single-filing-executor
 ///   path: create exactly ONE filing run carrying the report kind,
-///   idempotent per (case, report kind) — Compliance detects, Reporting
+///   idempotent per (case, report kind) - Compliance detects, Reporting
 ///   files (never the reverse).
 /// - other `bank8:reporting:*` events → re-drive the named run's filing
 ///   workflow via Flow when a Flow identity exists.
@@ -278,16 +278,16 @@ async fn process_filing_event(
     );
     // The Flow resume call rides the cert-bound Flow client; the filing
     // workflow steps themselves execute through the proxy-back
-    // (`execute_filing_step`) — the durable tier of the access order.
+    // (`execute_filing_step`) - the durable tier of the access order.
     let _ = &state.flow;
     let _ = payload;
     Ok(())
 }
 
-/// The AML/CTF filing path (RPT-SUB-1 — reporting DESIGN.md §4/§8):
+/// The AML/CTF filing path (RPT-SUB-1 - reporting DESIGN.md §4/§8):
 /// exactly one filing run per concluded suspicious case, idempotent per
 /// (case, report kind). The run lands in `draft` with the report kind in
-/// its idempotency key — the generation/packaging/submission chain picks
+/// its idempotency key - the generation/packaging/submission chain picks
 /// it up like any other run (single filing executor; Compliance never
 /// files and never touches Reporting's tables).
 async fn file_suspicious_activity(
@@ -310,11 +310,11 @@ async fn file_suspicious_activity(
     set_tenant_context(&mut tx, env_id).await;
 
     // Idempotent per (case, report kind): the filing_runs key namespaces
-    // AML filings under `aml:{case_id}:{kind}` — a redelivered event
+    // AML filings under `aml:{case_id}:{kind}` - a redelivered event
     // converges to the same row (at-least-once stream + idempotent
     // consumer = effectively-once).
     // The AML filing run has no obligation (event-driven, not
-    // calendar-driven) — obligation_id is nil and the period label
+    // calendar-driven) - obligation_id is nil and the period label
     // carries the case reference.
     let res = sqlx::query(
         r#"INSERT INTO filing_runs (env_id, obligation_id, period, status, idempotency_key)
@@ -333,7 +333,7 @@ async fn file_suspicious_activity(
     if res.rows_affected() > 0 {
         tracing::info!(%case_id, %report_kind, %env_id, "reporting: AML filing run created (single filing executor)");
         // Emit the durable event so downstream consumers (admin cockpit)
-        // refresh — membus state refresh rides the handler tier.
+        // refresh - membus state refresh rides the handler tier.
         let _ = sentin8::bus::outbox::insert_outbox_row_pool(
             &state.pool,
             env_id,
@@ -353,19 +353,19 @@ async fn file_suspicious_activity(
 }
 
 /// Register the reporting step-handler profile with Flow (best-effort at
-/// startup — the Flow registration contract, reporting DESIGN.md §2). The
+/// startup - the Flow registration contract, reporting DESIGN.md §2). The
 /// call rides the cert-presenting `reporting-worker` transport
-/// (CERTFREE-4V — Flow's certificate-first gate resolves the workload and
+/// (CERTFREE-4V - Flow's certificate-first gate resolves the workload and
 /// its flow scopes); `None` skips the registration (the worker retries on
 /// its next Flow re-drive). The body's `auth_token` is the proxy-back
-/// callback credential — the static dev token, inert on the cert path.
+/// callback credential - the static dev token, inert on the cert path.
 pub async fn register_with_flow(
     sentin8_flow_url: &str,
     self_url: &str,
     flow_http: Option<&reqwest::Client>,
 ) -> Result<(), String> {
     let Some(http) = flow_http else {
-        return Err("reporting-worker transport unavailable — registration skipped".into());
+        return Err("reporting-worker transport unavailable - registration skipped".into());
     };
     let body = serde_json::json!({
         "domain": "reporting",
@@ -391,9 +391,9 @@ pub async fn register_with_flow(
 
 // ── Flow proxy-back step dispatch (reporting DESIGN.md §4) ───────────────
 
-/// Guarded run-state transition — the step contract's write half. Every
+/// Guarded run-state transition - the step contract's write half. Every
 /// step lands its transition through the run's state machine: only the
-/// legal next state is written (terminal states never regress —
+/// legal next state is written (terminal states never regress -
 /// corrections are amendments, DESIGN.md §8).
 async fn advance_run(
     pool: &sqlx::PgPool,
@@ -409,7 +409,7 @@ async fn advance_run(
     let mut tx = pool.begin().await.map_err(|e| format!("tx: {e}"))?;
     set_tenant_context(&mut tx, env_id).await;
     // Guarded transition: the state list is the legality gate; a 0-row
-    // update means the run is absent, already advanced, or terminal —
+    // update means the run is absent, already advanced, or terminal -
     // idempotent by construction (at-least-once steps + guarded updates
     // = effectively-once). Parameter order: $1 env, $2 new status, $3
     // run id, $4.. from-states, and the artifact last when present.
@@ -451,7 +451,7 @@ async fn advance_run(
     Ok(advanced)
 }
 
-/// `FilingGenerateStep` — aggregate the template's inputs (Ledger/Risk
+/// `FilingGenerateStep` - aggregate the template's inputs (Ledger/Risk
 /// public-API reads at generation time) and mark the run generated.
 /// Input: `{ "env_id": Uuid, "run_id": Uuid, ... }`.
 async fn step_generate(pool: &sqlx::PgPool, input: &serde_json::Value) -> ProxyBackResponse {
@@ -483,9 +483,9 @@ async fn step_generate(pool: &sqlx::PgPool, input: &serde_json::Value) -> ProxyB
     }
 }
 
-/// `FilingPackageStep` — package the validated return into the regulator's
+/// `FilingPackageStep` - package the validated return into the regulator's
 /// format (XBRL instance document or CSV extract). Validation runs before
-/// this step (an invalid return never reaches a regulator) — the packaged
+/// this step (an invalid return never reaches a regulator) - the packaged
 /// artifact uploads to Storage and its object path lands on the run.
 async fn step_package(pool: &sqlx::PgPool, input: &serde_json::Value) -> ProxyBackResponse {
     let env_id = match input
@@ -520,8 +520,8 @@ async fn step_package(pool: &sqlx::PgPool, input: &serde_json::Value) -> ProxyBa
     }
 }
 
-/// `FilingSubmitStep` — submit the packaged artifact to the configured
-/// regulator endpoint (credentials resolved by reference — never
+/// `FilingSubmitStep` - submit the packaged artifact to the configured
+/// regulator endpoint (credentials resolved by reference - never
 /// plaintext). Creates the `submissions` row with `acknowledgment =
 /// pending`.
 async fn step_submit(pool: &sqlx::PgPool, input: &serde_json::Value) -> ProxyBackResponse {
@@ -544,7 +544,7 @@ async fn step_submit(pool: &sqlx::PgPool, input: &serde_json::Value) -> ProxyBac
     .await
     {
         Ok(true) => {
-            // Record the submission envelope — the regulator's ack lands
+            // Record the submission envelope - the regulator's ack lands
             // on this row when the acknowledge step runs.
             let Some(run_id) = input["run_id"]
                 .as_str()
@@ -581,9 +581,9 @@ async fn step_submit(pool: &sqlx::PgPool, input: &serde_json::Value) -> ProxyBac
     }
 }
 
-/// `FilingAcknowledgeStep` — record the regulator's acknowledgment or
+/// `FilingAcknowledgeStep` - record the regulator's acknowledgment or
 /// rejection; rejection re-enters as an amendment workflow (terminal
-/// states never regress — corrections are amendments).
+/// states never regress - corrections are amendments).
 async fn step_acknowledge(pool: &sqlx::PgPool, input: &serde_json::Value) -> ProxyBackResponse {
     let env_id = match input
         .get("env_id")

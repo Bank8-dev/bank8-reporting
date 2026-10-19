@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:Reporting
 // SPDX-License-Identifier: Apache-2.0
 
-//! Bank8:Reporting Admin UI handlers — RFW (Remote Flutter Widget)
+//! Bank8:Reporting Admin UI handlers - RFW (Remote Flutter Widget)
 //! definitions for the filing cockpit. Icons are Material Icons code
 //! points (hex strings), per principles §4.15.
 
@@ -20,7 +20,7 @@ use sqlx::Row;
 use crate::auth;
 use crate::handlers::{set_tenant_context, AppState};
 
-/// GET /v1/admin/ui/{page} — return the RFW definition for the requested
+/// GET /v1/admin/ui/{page} - return the RFW definition for the requested
 /// admin page.
 #[utoipa::path(
     get,
@@ -54,7 +54,7 @@ pub async fn get_admin_ui(
         "overview" => overview_page(),
         "calendar" => calendar_page(),
         "runs" => runs_page(),
-        // ── Policy Studio (design §3.7) — shared page constructors; the
+        // ── Policy Studio (design §3.7) - shared page constructors; the
         // guard guarantees `Some` (§3.7 dispatch).
         p if sentin8::rfw::policy_page("bank8:reporting", p).is_some() => {
             sentin8::rfw::policy_page("bank8:reporting", p)
@@ -80,7 +80,7 @@ fn overview_page() -> AdminUiPage {
             title: Some("Filing Cockpit".into()),
             subtitle: None,
             children: vec![
-                RemoteWidget::Text(WidgetText { text: "Filing calendar, obligation status, run lifecycle, and submission history — the vertical's single filing executor.".into(), text_type: WidgetTextType::Body, align: TextAlign::Left, max_lines: None }),
+                RemoteWidget::Text(WidgetText { text: "Filing calendar, obligation status, run lifecycle, and submission history - the vertical's single filing executor.".into(), text_type: WidgetTextType::Body, align: TextAlign::Left, max_lines: None }),
             ],
             actions: vec![],
         }))
@@ -93,7 +93,7 @@ fn calendar_page() -> AdminUiPage {
             title: Some("Obligations".into()),
             subtitle: None,
             children: vec![
-                RemoteWidget::Text(WidgetText { text: "Due returns per regulator cadence; firing a due obligation is idempotent per (return, period) — a re-fired calendar can never double-submit.".into(), text_type: WidgetTextType::Body, align: TextAlign::Left, max_lines: None }),
+                RemoteWidget::Text(WidgetText { text: "Due returns per regulator cadence; firing a due obligation is idempotent per (return, period) - a re-fired calendar can never double-submit.".into(), text_type: WidgetTextType::Body, align: TextAlign::Left, max_lines: None }),
             ],
             actions: vec![],
         }))
@@ -106,14 +106,14 @@ fn runs_page() -> AdminUiPage {
             title: Some("Run Lifecycle".into()),
             subtitle: None,
             children: vec![
-                RemoteWidget::Text(WidgetText { text: "draft → generated → validated → packaged → submitted → acknowledged/rejected, with amended corrections — terminal states never regress.".into(), text_type: WidgetTextType::Body, align: TextAlign::Left, max_lines: None }),
+                RemoteWidget::Text(WidgetText { text: "draft → generated → validated → packaged → submitted → acknowledged/rejected, with amended corrections - terminal states never regress.".into(), text_type: WidgetTextType::Body, align: TextAlign::Left, max_lines: None }),
             ],
             actions: vec![],
         }))
         .build()
 }
 
-/// GET /v1/admin/overview — the data endpoint behind the overview page:
+/// GET /v1/admin/overview - the data endpoint behind the overview page:
 /// obligation/run/submission counts for the tenant env.
 #[utoipa::path(
     get,

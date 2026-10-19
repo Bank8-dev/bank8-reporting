@@ -1,4 +1,4 @@
-# Bank8:Reporting — Business Requirements & Functionality
+# Bank8:Reporting - Business Requirements & Functionality
 
 > Audience: product owners, business analysts, and anyone evaluating what
 > Bank8:Reporting **does for the business**. For architecture read
@@ -6,15 +6,15 @@
 
 ## 1. Business Purpose
 
-- **Regulatory filings on schedule, in the right format** — the bank
+- **Regulatory filings on schedule, in the right format** - the bank
   meets every regulator's prudential/statistical return obligations
   (capital, liquidity, financial, large exposures, granular credit)
   without bespoke per-jurisdiction code.
-- **One filing executor for the whole vertical** — AML/CTF reports
+- **One filing executor for the whole vertical** - AML/CTF reports
   (STR/SAR/CTR/EFTR/LCTR) and sanctions reports are *detected* by
   Bank8:Compliance and *filed* here, so there is exactly one mechanism
   that submits to a regulator.
-- **Portable across jurisdictions** — Canada (OSFI), US (Fed/OCC/FDIC,
+- **Portable across jurisdictions** - Canada (OSFI), US (Fed/OCC/FDIC,
   FinCEN), EU (ECB/EBA/NCAs), UK (PRA) are runtime registry data, not
   hardcoded; adding a jurisdiction is configuration, not engineering.
 
@@ -69,7 +69,7 @@
 1. A filing is idempotent per (return, period).
 2. Terminal submission states never regress; corrections are amendments.
 3. Regulator credentials are reference-only.
-4. No reportable event is silently dropped — DLQ is the floor.
+4. No reportable event is silently dropped - DLQ is the floor.
 
 ## 6. Target-User Roles & Use Cases
 
@@ -95,7 +95,7 @@
 1. A due return generates, validates, packages, and submits without manual steps.
 2. A rejected submission triggers an amendment workflow.
 3. A detected STR/SAR/CTR files through this service, not Compliance.
-4. Adding a jurisdiction is registry data only — no code change.
+4. Adding a jurisdiction is registry data only - no code change.
 
 ## 10. Open Business Questions
 

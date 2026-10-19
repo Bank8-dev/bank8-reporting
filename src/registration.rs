@@ -19,7 +19,7 @@ const PG_ROLES: &[PgRole] = &[PgRole {
     // Grants live in the bank8 vertical database only (DBX §6.6
     // database-per-vertical, schema-per-service).
     database: "bank8",
-    // Reporting owns all its reads — inputs arrive as events or
+    // Reporting owns all its reads - inputs arrive as events or
     // public-API reads, never cross-schema grants.
     cross_schema_grants: &[],
 }];
@@ -27,13 +27,13 @@ const PG_ROLES: &[PgRole] = &[PgRole {
 /// M2M DCR scope grants (self-registration design §3.11). One entry per
 /// workload this service registers via DCR; `vertical enroll` upserts
 /// `certless:<workload>` rows into `sentin8.auth_m2m_scope_grants`.
-/// - `bank8:reporting` — the service's own client (server.rs): bus
+/// - `bank8:reporting` - the service's own client (server.rs): bus
 ///   produce/consume (worker + outbox relay path).
-/// - `reporting` — the bare short-form spelling the runtime DCR call
+/// - `reporting` - the bare short-form spelling the runtime DCR call
 ///   sites pass; the gate looks up the exact client_name.
-/// - `reporting-audit` — shell audit-journal pusher workload (audit
+/// - `reporting-audit` - shell audit-journal pusher workload (audit
 ///   crate §6.8; boot step 8c).
-/// - `reporting-worker` — the embedded filing worker (worker.rs): SSE
+/// - `reporting-worker` - the embedded filing worker (worker.rs): SSE
 ///   consume + Flow resume/retry.
 const M2M_GRANTS: &[M2mGrant] = &[
     M2mGrant {
@@ -55,7 +55,7 @@ const M2M_GRANTS: &[M2mGrant] = &[
         ],
     },
     // Shield hot-reload consumer (policy crate `policy_bus_client`, full
-    // colon identity — BUSPOLICY-1: the boot-minted cert is authorized by
+    // colon identity - BUSPOLICY-1: the boot-minted cert is authorized by
     // the enroll-published registry map, and enrollment only provisions
     // declared workloads; without this row every policy SSE connect 401s
     // "workload is not enrolled" and hot-reload is dead for this service).
@@ -78,7 +78,7 @@ const M2M_GRANTS: &[M2mGrant] = &[
     },
     // Event-driven env-init consumer (event_consumer.rs; consumer group
     // `bank8:reporting:envinit` under the short-form `reporting-envinit`
-    // workload identity — BUSPOLICY-1: every runtime-presented identity
+    // workload identity - BUSPOLICY-1: every runtime-presented identity
     // must be declared for the enroll-published registry map to authorize
     // it).
     M2mGrant {
@@ -199,7 +199,7 @@ const ADMIN_UI_PAGES: &[AdminUiPage] = &[
 
 /// Default declarative policy set (Sentin8:Policy design §3.2/§3.4,
 /// seeded by `vertical enroll` as `origin='platform'`, `mode='enforced'`):
-/// action-granular scope permits over the LIVE effective scope set — the
+/// action-granular scope permits over the LIVE effective scope set - the
 /// exact mirror of the gates this service's handlers evaluate in step 5
 /// (policy design §4.3). Step 5 is the only gate.
 pub const SCOPE_MIRROR_POLICIES: &str = concat!(
@@ -245,7 +245,7 @@ const POLICIES: &[PolicySetDecl] = &[PolicySetDecl {
     default_enabled: true,
 }];
 
-/// Default ReBAC relation tuples (design §3.1c) — none declared by this
+/// Default ReBAC relation tuples (design §3.1c) - none declared by this
 /// service today; env admins author their own graph via the relations
 /// admin API.
 const RELATIONS: &[RelationDecl] = &[];
@@ -286,7 +286,7 @@ pub fn print(section: Option<String>) -> anyhow::Result<()> {
         policies: POLICIES,
         relations: RELATIONS,
         event_triggers: &[],
-        // Filing-calendar due-check (SDD §2.4): daily 00:05 sweep — Cron
+        // Filing-calendar due-check (SDD §2.4): daily 00:05 sweep - Cron
         // owns timing, reporting owns correctness. Provisioned at enroll;
         // fires the internal due-check route.
         schedules: &[ScheduleDecl {

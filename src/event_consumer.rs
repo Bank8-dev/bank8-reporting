@@ -3,10 +3,10 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:Reporting
 // SPDX-License-Identifier: Apache-2.0
 
-//! Sentin8:Bus env-init consumer — reacts to `sentin8:sys:service:updated`
+//! Sentin8:Bus env-init consumer - reacts to `sentin8:sys:service:updated`
 //! when the `reporting` service is enabled for an org/env: materializes
 //! that env's filing obligations from the jurisdiction registry
-//! (platform-scoped rows provisioned by `vertical init`), idempotently —
+//! (platform-scoped rows provisioned by `vertical init`), idempotently -
 //! the (env, template, period) unique index is the dedupe floor
 //! (reporting DESIGN.md §3; JUR-REG-1/RPT-CAL-1).
 //!
@@ -18,7 +18,7 @@ use futures_util::StreamExt;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-/// Consumer group name — identifies this reporting instance to Sentin8:Bus.
+/// Consumer group name - identifies this reporting instance to Sentin8:Bus.
 const CONSUMER_GROUP: &str = "bank8:reporting:envinit";
 
 /// Reconnect delay when the Bus SSE connection drops or an error occurs.
@@ -39,7 +39,7 @@ async fn run(pool: PgPool, bus_client: sentin8::bus::client::BusClient) {
     tracing::info!("reporting: bus env-init consumer started (consumer_group={CONSUMER_GROUP})");
 
     // Startup backfill: re-derive obligations for envs already known
-    // locally (obligation rows exist from a prior enablement) — the
+    // locally (obligation rows exist from a prior enablement) - the
     // platform re-emits nothing, so a redeployed consumer heals from
     // local state (idempotent).
     backfill_known_envs(&pool).await;
@@ -49,10 +49,10 @@ async fn run(pool: PgPool, bus_client: sentin8::bus::client::BusClient) {
             Ok(resp) => {
                 tracing::info!("reporting: bus SSE connected to stream family 'sys'");
                 sse_loop(&pool, &bus_client, resp).await;
-                tracing::info!("reporting: bus SSE disconnected — reconnecting");
+                tracing::info!("reporting: bus SSE disconnected - reconnecting");
             }
             Err(e) => {
-                tracing::warn!(error = %e, "reporting: bus SSE consume failed — reconnecting");
+                tracing::warn!(error = %e, "reporting: bus SSE consume failed - reconnecting");
             }
         }
         tokio::time::sleep(RECONNECT_DELAY).await;
@@ -109,7 +109,7 @@ async fn sse_loop(
     }
 }
 
-/// Startup backfill — re-derive obligations for envs known locally.
+/// Startup backfill - re-derive obligations for envs known locally.
 async fn backfill_known_envs(pool: &PgPool) {
     let rows: Vec<(Uuid,)> =
         match sqlx::query_as(r#"SELECT DISTINCT env_id FROM filing_obligations"#)
@@ -124,7 +124,7 @@ async fn backfill_known_envs(pool: &PgPool) {
         };
 
     tracing::info!(
-        "reporting: backfill — {} known env(s) re-verified",
+        "reporting: backfill - {} known env(s) re-verified",
         rows.len()
     );
 
@@ -166,10 +166,10 @@ async fn handle_message(pool: &PgPool, msg: &sentin8::bus::contracts::Message) {
     };
 
     // VDC-2 consumer-side defense-in-depth: the event's first colon
-    // segment must match the recorded producer vertical — verifies the
+    // segment must match the recorded producer vertical - verifies the
     // message Bus delivered before seeding tenant state.
     if let Err(reason) = sentin8::bus::client::BusClient::require_publisher(msg) {
-        tracing::warn!(reason = %reason, "reporting: untrusted publisher — skipping env-init");
+        tracing::warn!(reason = %reason, "reporting: untrusted publisher - skipping env-init");
         return;
     }
 
@@ -178,14 +178,14 @@ async fn handle_message(pool: &PgPool, msg: &sentin8::bus::contracts::Message) {
 }
 
 /// Materialize the env's filing obligations from the jurisdiction
-/// registry — one obligation per prudential return template for the
+/// registry - one obligation per prudential return template for the
 /// current period, next-due derived from the template cadence
 /// (RPT-CAL-1). Idempotent: the (env, template, period) unique index is
-/// the dedupe floor — a re-fired env-init never double-creates.
+/// the dedupe floor - a re-fired env-init never double-creates.
 ///
 /// Registry tables are platform-scoped (no RLS); obligation rows are
 /// FORCE-RLS'd, so the insert carries the env context on the SAME
-/// transaction (the FDX-RLS1 lesson — never set-then-autocommit).
+/// transaction (the FDX-RLS1 lesson - never set-then-autocommit).
 async fn seed_obligations(pool: &PgPool, env_id: Uuid) {
     let mut tx = match pool.begin().await {
         Ok(t) => t,
@@ -201,7 +201,7 @@ async fn seed_obligations(pool: &PgPool, env_id: Uuid) {
 
     // One obligation per prudential template for the current period.
     // The period label derives from the cadence (quarter start, month
-    // start, or today) — the calendar engine advances next_due per
+    // start, or today) - the calendar engine advances next_due per
     // cadence; the seed only plants the current period's row.
     let inserted = match sqlx::query(
         r#"

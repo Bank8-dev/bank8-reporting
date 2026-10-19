@@ -10,7 +10,7 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/Bank8-dev/bank8-reporting"
 rust-version = "1.85"
-description = "Sentin8 Bank8:Reporting — regulatory filing calendar, generation, packaging, submission."
+description = "Sentin8 Bank8:Reporting - regulatory filing calendar, generation, packaging, submission."
 
 [[bin]]
 name = "bank8-reporting"

@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:Reporting
 // SPDX-License-Identifier: Apache-2.0
 
-//! Reporting error responses — standard error format with error codes
+//! Reporting error responses - standard error format with error codes
 //! and HTTP status mappings, integrated with Axum via `into_response`.
 
 use axum::{

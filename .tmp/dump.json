@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "bank8-reporting",
-    "description": "Sentin8 Bank8:Reporting — regulatory filing calendar, generation, packaging, submission.",
+    "description": "Sentin8 Bank8:Reporting - regulatory filing calendar, generation, packaging, submission.",
     "license": {
       "name": "MIT OR Apache-2.0",
       "identifier": "MIT OR Apache-2.0"
@@ -15,7 +15,7 @@
         "tags": [
           "admin-ui"
         ],
-        "summary": "GET /v1/admin/overview — the data endpoint behind the overview page:\nobligation/run/submission counts for the tenant env.",
+        "summary": "GET /v1/admin/overview - the data endpoint behind the overview page:\nobligation/run/submission counts for the tenant env.",
         "operationId": "admin_overview",
         "parameters": [
           {
@@ -53,7 +53,7 @@
         "tags": [
           "admin-ui"
         ],
-        "summary": "GET /v1/admin/ui/{page} — return the RFW definition for the requested\nadmin page.",
+        "summary": "GET /v1/admin/ui/{page} - return the RFW definition for the requested\nadmin page.",
         "operationId": "get_admin_ui",
         "parameters": [
           {
@@ -100,8 +100,8 @@
         "tags": [
           "meta"
         ],
-        "summary": "`GET /v1/health` — service health payload.",
-        "description": "Carries the binary's build identity (`version`/`build`, BUILDID-1) so\ncaptain's monitor populates `make status`'s VERSION column for every\ninstance — the consuming BINARY's identity, never a shared crate's.",
+        "summary": "`GET /v1/health` - service health payload.",
+        "description": "Carries the binary's build identity (`version`/`build`, BUILDID-1) so\ncaptain's monitor populates `make status`'s VERSION column for every\ninstance - the consuming BINARY's identity, never a shared crate's.",
         "operationId": "health",
         "responses": {
           "200": {
@@ -116,7 +116,7 @@
         "tags": [
           "internal"
         ],
-        "summary": "`POST /v1/internal/calendar/schedules/run` — Cron fires this daily.\nMarks due obligations and creates their filing runs — idempotent per\n(obligation, period): the unique index is the dedupe floor, so a\nre-fired calendar never double-creates (reporting DESIGN.md §5/§8).\nCron owns timing; this owns correctness. The `sentin8:cron` workload\nis granted `bank8:reporting:runs:write` in this service's registration\n(the ledger-storage precedent), so the same Shield gate every human\nmutation passes also gates the scheduled fire — no bypass.",
+        "summary": "`POST /v1/internal/calendar/schedules/run` - Cron fires this daily.\nMarks due obligations and creates their filing runs - idempotent per\n(obligation, period): the unique index is the dedupe floor, so a\nre-fired calendar never double-creates (reporting DESIGN.md §5/§8).\nCron owns timing; this owns correctness. The `sentin8:cron` workload\nis granted `bank8:reporting:runs:write` in this service's registration\n(the ledger-storage precedent), so the same Shield gate every human\nmutation passes also gates the scheduled fire - no bypass.",
         "operationId": "calendar_due_check",
         "requestBody": {
           "content": {
@@ -139,7 +139,7 @@
         "tags": [
           "internal"
         ],
-        "summary": "`POST /v1/internal/steps/execute` — Flow proxy-back for filing\nworkflow steps (DESIGN.md §4; the proxy-back contract is one of the\nnarrow internal-API exceptions — the steps are already\nevent-triggered, the proxy-back is their data access). The env rides\nthe step input (Flow records it at workflow creation); the dispatch\nowns the guarded state transitions.",
+        "summary": "`POST /v1/internal/steps/execute` - Flow proxy-back for filing\nworkflow steps (DESIGN.md §4; the proxy-back contract is one of the\nnarrow internal-API exceptions - the steps are already\nevent-triggered, the proxy-back is their data access). The env rides\nthe step input (Flow records it at workflow creation); the dispatch\nowns the guarded state transitions.",
         "operationId": "execute_step",
         "requestBody": {
           "content": {
@@ -167,7 +167,7 @@
         "tags": [
           "handlers"
         ],
-        "summary": "`GET /v1/obligations` — list filing obligations for the tenant env.",
+        "summary": "`GET /v1/obligations` - list filing obligations for the tenant env.",
         "operationId": "list_obligations",
         "responses": {
           "200": {
@@ -191,7 +191,7 @@
         "tags": [
           "handlers"
         ],
-        "summary": "`GET /v1/runs` — list filing runs, optionally by status.",
+        "summary": "`GET /v1/runs` - list filing runs, optionally by status.",
         "operationId": "list_runs",
         "parameters": [
           {
@@ -228,7 +228,7 @@
         "tags": [
           "handlers"
         ],
-        "summary": "`GET /v1/runs/{id}` — filing run detail.",
+        "summary": "`GET /v1/runs/{id}` - filing run detail.",
         "operationId": "get_run",
         "responses": {
           "200": {
@@ -249,7 +249,7 @@
         "tags": [
           "handlers"
         ],
-        "summary": "`POST /v1/runs/{id}/regenerate` — reset a non-submitted run to draft\n(guarded: terminal states never regress; corrections are amendments).",
+        "summary": "`POST /v1/runs/{id}/regenerate` - reset a non-submitted run to draft\n(guarded: terminal states never regress; corrections are amendments).",
         "operationId": "regenerate_run",
         "responses": {
           "200": {
@@ -273,7 +273,7 @@
         "tags": [
           "handlers"
         ],
-        "summary": "`GET /v1/submissions` — list submissions for the tenant env.",
+        "summary": "`GET /v1/submissions` - list submissions for the tenant env.",
         "operationId": "list_submissions",
         "responses": {
           "200": {
@@ -425,7 +425,7 @@
   "tags": [
     {
       "name": "reporting",
-      "description": "Bank8:Reporting — regulatory filing calendar, generation, packaging, submission"
+      "description": "Bank8:Reporting - regulatory filing calendar, generation, packaging, submission"
     }
   ]
 }

@@ -3,10 +3,10 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:Reporting
 // SPDX-License-Identifier: Apache-2.0
 
-//! Reporting HTTP handlers — filing obligations, runs, submissions, and
+//! Reporting HTTP handlers - filing obligations, runs, submissions, and
 //! the jurisdiction registry reads. See reporting DESIGN.md §4.
 //!
-//! Every handler: verify (steps 1–4) → Shield gate (step 5, the ONLY
+//! Every handler: verify (steps 1-4) → Shield gate (step 5, the ONLY
 //! gate) → same-transaction tenant context → explicit `WHERE env_id`
 //! (defense-in-depth) → commit → emit (membus → bus, DESIGN.md §2).
 
@@ -31,23 +31,23 @@ use crate::policy::Engine;
 pub struct AppState {
     pub config: Arc<ReportingConfig>,
     pub pool: sqlx::PgPool,
-    /// Shield policy engine — step 5 is the ONLY gate: handlers verify
-    /// the token (steps 1–4) then evaluate a
+    /// Shield policy engine - step 5 is the ONLY gate: handlers verify
+    /// the token (steps 1-4) then evaluate a
     /// `bank8:reporting:<resource>:<action>` target; no JWT scope check
     /// remains.
     pub policy: Arc<Engine>,
-    /// Shared Sentin8:Policy admin surface (§3.6) — same engine instance
+    /// Shared Sentin8:Policy admin surface (§3.6) - same engine instance
     /// the request path evaluates.
     pub admin: sentin8::shield::admin::SharedAdminState,
-    /// MemBus handle (principles §4.7 — membus → bus → API): state
+    /// MemBus handle (principles §4.7 - membus → bus → API): state
     /// refreshes ride the newest-wins ephemeral tier; durable events ride
-    /// the local outbox → relay → Bus. Fail-soft — a Valkey outage only
+    /// the local outbox → relay → Bus. Fail-soft - a Valkey outage only
     /// degrades refresh, never a mutation.
     pub membus: sentin8::membus::ServiceBus,
 }
 
 /// Set the transaction-local RLS tenant context on a connection. MUST be
-/// awaited on the same connection every subsequent tenant query runs on —
+/// awaited on the same connection every subsequent tenant query runs on -
 /// `set_config(..., true)` scopes the setting to the transaction
 /// (architecture-principles §4.3d).
 pub(crate) async fn set_tenant_context(conn: &mut sqlx::PgConnection, env_id: Uuid) {
@@ -57,11 +57,11 @@ pub(crate) async fn set_tenant_context(conn: &mut sqlx::PgConnection, env_id: Uu
         .await;
 }
 
-/// Emit a reporting event through both tiers (DESIGN.md §2 — membus →
+/// Emit a reporting event through both tiers (DESIGN.md §2 - membus →
 /// bus): the MemBus state refresh first (fail-soft, newest-wins), then
 /// the durable outbox row the shell relay drains to Bus
 /// `POST /v1/produce` (idempotency_key = row id). Errors are logged and
-/// ignored — the committed domain row stays authoritative and the relay
+/// ignored - the committed domain row stays authoritative and the relay
 /// retries from the outbox.
 pub(crate) async fn emit_event(
     state: &AppState,
@@ -188,11 +188,11 @@ fn row_to_run(row: &sqlx::postgres::PgRow) -> RunResponse {
     security(),
     tag = "meta",
 )]
-/// `GET /v1/health` — service health payload.
+/// `GET /v1/health` - service health payload.
 ///
 /// Carries the binary's build identity (`version`/`build`, BUILDID-1) so
 /// captain's monitor populates `make status`'s VERSION column for every
-/// instance — the consuming BINARY's identity, never a shared crate's.
+/// instance - the consuming BINARY's identity, never a shared crate's.
 pub async fn health(State(state): State<AppState>) -> impl IntoResponse {
     let db_ok = sqlx::query("SELECT 1").execute(&state.pool).await.is_ok();
     Json(
@@ -202,7 +202,7 @@ pub async fn health(State(state): State<AppState>) -> impl IntoResponse {
 
 // ── Filing obligations ────────────────────────────────────────────────────
 
-/// `GET /v1/obligations` — list filing obligations for the tenant env.
+/// `GET /v1/obligations` - list filing obligations for the tenant env.
 #[utoipa::path(get, path = "/v1/obligations", responses((status = 200, body = [ObligationResponse])))]
 pub async fn list_obligations(
     State(state): State<AppState>,
@@ -235,7 +235,7 @@ pub async fn list_obligations(
 
 // ── Filing runs ───────────────────────────────────────────────────────────
 
-/// `GET /v1/runs` — list filing runs, optionally by status.
+/// `GET /v1/runs` - list filing runs, optionally by status.
 #[utoipa::path(get, path = "/v1/runs", params(ListRunsQuery), responses((status = 200, body = [RunResponse])))]
 pub async fn list_runs(
     State(state): State<AppState>,
@@ -266,7 +266,7 @@ pub async fn list_runs(
     Ok(Json(rows.iter().map(row_to_run).collect()))
 }
 
-/// `GET /v1/runs/{id}` — filing run detail.
+/// `GET /v1/runs/{id}` - filing run detail.
 #[utoipa::path(get, path = "/v1/runs/{id}", responses((status = 200, body = RunResponse)))]
 pub async fn get_run(
     State(state): State<AppState>,
@@ -295,7 +295,7 @@ pub async fn get_run(
     Ok(Json(row_to_run(&row)))
 }
 
-/// `POST /v1/runs/{id}/regenerate` — reset a non-submitted run to draft
+/// `POST /v1/runs/{id}/regenerate` - reset a non-submitted run to draft
 /// (guarded: terminal states never regress; corrections are amendments).
 #[utoipa::path(post, path = "/v1/runs/{id}/regenerate", responses((status = 200, body = RunResponse), (status = 409)))]
 pub async fn regenerate_run(
@@ -327,7 +327,7 @@ pub async fn regenerate_run(
     let Some(row) = row else {
         return Err((
             StatusCode::CONFLICT,
-            "run is already submitted — corrections are amendments".into(),
+            "run is already submitted - corrections are amendments".into(),
         ));
     };
     let run = row_to_run(&row);
@@ -344,7 +344,7 @@ pub async fn regenerate_run(
 
 // ── Submissions ───────────────────────────────────────────────────────────
 
-/// `GET /v1/submissions` — list submissions for the tenant env.
+/// `GET /v1/submissions` - list submissions for the tenant env.
 #[utoipa::path(get, path = "/v1/submissions", responses((status = 200, body = [serde_json::Value])))]
 pub async fn list_submissions(
     State(state): State<AppState>,
@@ -382,10 +382,10 @@ pub async fn list_submissions(
     Ok(Json(out))
 }
 
-// ── Calendar due-check (Cron proxy-back — RPT-CAL-1) ───────────────────
+// ── Calendar due-check (Cron proxy-back - RPT-CAL-1) ───────────────────
 
 /// The fixed body envelope Cron posts on every fire (ticker.rs
-/// execute_proxy_back) — the env arrives IN THE BODY (Cron is a
+/// execute_proxy_back) - the env arrives IN THE BODY (Cron is a
 /// platform M2M whose own identity carries no tenant env). The unused
 /// fields are part of the envelope contract and stay for documentation.
 #[derive(Debug, Deserialize, ToSchema)]
@@ -400,14 +400,14 @@ pub struct CronFireRequest {
     pub idempotency_key: Option<String>,
 }
 
-/// `POST /v1/internal/calendar/schedules/run` — Cron fires this daily.
-/// Marks due obligations and creates their filing runs — idempotent per
+/// `POST /v1/internal/calendar/schedules/run` - Cron fires this daily.
+/// Marks due obligations and creates their filing runs - idempotent per
 /// (obligation, period): the unique index is the dedupe floor, so a
 /// re-fired calendar never double-creates (reporting DESIGN.md §5/§8).
 /// Cron owns timing; this owns correctness. The `sentin8:cron` workload
 /// is granted `bank8:reporting:runs:write` in this service's registration
 /// (the ledger-storage precedent), so the same Shield gate every human
-/// mutation passes also gates the scheduled fire — no bypass.
+/// mutation passes also gates the scheduled fire - no bypass.
 #[utoipa::path(
     post,
     path = "/v1/internal/calendar/schedules/run",
@@ -450,7 +450,7 @@ pub async fn calendar_due_check(
     for row in &due {
         let obligation_id: Uuid = row.get("id");
         let period: String = row.get("period");
-        // Create the draft run — idempotent per (obligation, period);
+        // Create the draft run - idempotent per (obligation, period);
         // the idempotency key stays stable across re-fires.
         let run_key = req
             .idempotency_key
@@ -492,9 +492,9 @@ pub async fn calendar_due_check(
 
 // ── Flow proxy-back ───────────────────────────────────────────────────────
 
-/// `POST /v1/internal/steps/execute` — Flow proxy-back for filing
+/// `POST /v1/internal/steps/execute` - Flow proxy-back for filing
 /// workflow steps (DESIGN.md §4; the proxy-back contract is one of the
-/// narrow internal-API exceptions — the steps are already
+/// narrow internal-API exceptions - the steps are already
 /// event-triggered, the proxy-back is their data access). The env rides
 /// the step input (Flow records it at workflow creation); the dispatch
 /// owns the guarded state transitions.

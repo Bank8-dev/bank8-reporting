@@ -3,12 +3,12 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:Reporting
 // SPDX-License-Identifier: Apache-2.0
 
-//! DB-backed schema-invariant tests (runtime-skip) — reporting DESIGN.md
+//! DB-backed schema-invariant tests (runtime-skip) - reporting DESIGN.md
 //! §9. Exercises the schema's load-bearing invariants against a live
 //! PostgreSQL using the SQL the handlers run: FORCE-RLS rejects
 //! context-less inserts; the (obligation, period) unique index makes
 //! calendar/idempotency dedupe real; the guarded state machine transitions
-//! only legal states. Skipped when `DATABASE_URL` is unreachable —
+//! only legal states. Skipped when `DATABASE_URL` is unreachable -
 //! matching the platform's TEST-SYS-3 pattern (ledger
 //! `tests/db_handlers.rs` is the template).
 
@@ -22,7 +22,7 @@ async fn test_pool() -> Option<PgPool> {
     match sqlx::PgPool::connect(&url).await {
         Ok(p) => Some(p),
         Err(e) => {
-            eprintln!("skipping DB-backed reporting tests — no database: {e}");
+            eprintln!("skipping DB-backed reporting tests - no database: {e}");
             None
         }
     }
@@ -30,7 +30,7 @@ async fn test_pool() -> Option<PgPool> {
 
 async fn seed_template(pool: &PgPool) -> Option<(Uuid, Uuid)> {
     // Seed a jurisdiction + regulator + return template (registry data,
-    // platform-scoped — no tenant context needed) and return
+    // platform-scoped - no tenant context needed) and return
     // (jurisdiction id, template id).
     let jid = sqlx::query_scalar::<_, Uuid>(
         r#"INSERT INTO reporting.jurisdictions (country_code, metadata)
@@ -61,7 +61,7 @@ async fn seed_template(pool: &PgPool) -> Option<(Uuid, Uuid)> {
 }
 
 /// FORCE-RLS: a tenant-table insert WITHOUT an initialized context is
-/// rejected — the RLS backstop is live on filing_obligations.
+/// rejected - the RLS backstop is live on filing_obligations.
 #[tokio::test]
 async fn obligation_insert_without_context_rejected() {
     let Some(pool) = test_pool().await else {
@@ -83,7 +83,7 @@ async fn obligation_insert_without_context_rejected() {
 }
 
 /// The idempotency invariant: the (obligation, period) unique index makes
-/// a re-fired calendar converge — the second INSERT with the same key
+/// a re-fired calendar converge - the second INSERT with the same key
 /// is a no-op under ON CONFLICT.
 #[tokio::test]
 async fn obligation_seed_is_idempotent() {
@@ -191,7 +191,7 @@ async fn guarded_step_transition_is_effectively_once() {
 
 /// Terminal states never regress: submitted → acknowledged holds; no
 /// update from an acknowledged run back to draft (corrections are
-/// amendments, never mutations — §8).
+/// amendments, never mutations - §8).
 #[tokio::test]
 async fn terminal_states_never_regress() {
     let Some(pool) = test_pool().await else {
@@ -246,7 +246,7 @@ async fn terminal_states_never_regress() {
 }
 
 /// The AML filing path's idempotency: an (obligation NULL, period
-/// `aml:{case}`) run converges on redelivery — one filing run per
+/// `aml:{case}`) run converges on redelivery - one filing run per
 /// (case, report kind).
 #[tokio::test]
 async fn aml_filing_run_is_idempotent_per_case() {

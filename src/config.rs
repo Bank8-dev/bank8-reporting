@@ -5,7 +5,7 @@
 
 //! Reporting configuration.
 //!
-//! URLs only — no tokens. Every outbound platform call (Bus, Flow,
+//! URLs only - no tokens. Every outbound platform call (Bus, Flow,
 //! Storage, peer public-API reads) sources its token from the service's
 //! own cert-bound DCR identity at the call site (single identity plane,
 //! principles §4.1): a failed DCR fails the call closed; there is no
@@ -22,16 +22,16 @@ pub struct ReportingConfig {
     pub database_url: String,
     pub sentin8_auth_issuer: String,
     pub sentin8_auth_jwks_url: String,
-    /// Bank8:Ledger's public API — the generation engine's balance reads
+    /// Bank8:Ledger's public API - the generation engine's balance reads
     /// (never its tables).
     pub ledger_url: String,
-    /// Bank8:Risk's public API — the generation engine's exposure inputs.
+    /// Bank8:Risk's public API - the generation engine's exposure inputs.
     pub risk_url: String,
     pub sentin8_bus_url: String,
     pub stream_family: String,
     pub sentin8_flow_url: String,
     pub sentin8_storage_url: String,
-    /// Shared Auth client — constructed once so the discovery and JWKS
+    /// Shared Auth client - constructed once so the discovery and JWKS
     /// caches are reused across every request.
     pub sentin8_auth_client: AuthClient,
 }

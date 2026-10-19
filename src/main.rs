@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:Reporting
 // SPDX-License-Identifier: Apache-2.0
 
-//! Sentin8 Reporting — regulatory filing calendar, generation, packaging,
+//! Sentin8 Reporting - regulatory filing calendar, generation, packaging,
 //! submission. See `services/reporting/DESIGN.md`.
 //! Boot runs on the platform `sentin8-shell` crate: registration flag, PQ
 //! provider, config, capped pool, PG18 check, state binding, OpenAPI

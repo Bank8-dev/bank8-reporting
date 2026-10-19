@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:Reporting
 // SPDX-License-Identifier: Apache-2.0
 
-//! Axum server setup for Reporting — shell boot composition.
+//! Axum server setup for Reporting - shell boot composition.
 //! See `services/reporting/DESIGN.md` §2.
 
 use crate::handlers::{self, AppState};
@@ -13,13 +13,13 @@ use std::sync::Arc;
 pub async fn build_state(core: sentin8::shell::ServiceCore) -> anyhow::Result<AppState> {
     let config = Arc::new(crate::config::ReportingConfig::from_env());
 
-    // ── Sentin8:Policy (§4.2b — shell-owned boot): consume the engine the
-    // shell booted in step 8 — no second engine, consumer, or DCR
+    // ── Sentin8:Policy (§4.2b - shell-owned boot): consume the engine the
+    // shell booted in step 8 - no second engine, consumer, or DCR
     // registration here. Step 5 is the ONLY gate.
     let policy_engine = core.admin.policy.clone();
 
-    // ── MemBus (principles §4.7 — membus → bus → API): the newest-wins
-    // state-refresh tier. Fail-soft by contract — an unreachable Valkey
+    // ── MemBus (principles §4.7 - membus → bus → API): the newest-wins
+    // state-refresh tier. Fail-soft by contract - an unreachable Valkey
     // disables refresh with a WARN, never a startup error.
     let membus =
         sentin8::membus::ServiceBus::connect("bank8:reporting", &core.config.valkey_url).await;
@@ -39,10 +39,10 @@ pub async fn build_state(core: sentin8::shell::ServiceCore) -> anyhow::Result<Ap
 
     // Spawn the embedded filing worker: consumes the `reporting` family
     // and turns filing events into Flow resume calls (the WKR-MERGE
-    // embedded-worker precedent — no separate binary). The worker owns
+    // embedded-worker precedent - no separate binary). The worker owns
     // the service's single outbound identity: the `reporting-worker`
-    // workload CERTIFICATE (CERTFREE-4V — no DCR, no token; single
-    // identity plane, principles §4.1) resolves Bus + Flow access — a
+    // workload CERTIFICATE (CERTFREE-4V - no DCR, no token; single
+    // identity plane, principles §4.1) resolves Bus + Flow access - a
     // missing transport fails closed, no token fallback. The worker also
     // registers the Flow step-handler profile with the same identity.
     crate::worker::spawn(&state).await;
@@ -86,16 +86,16 @@ pub fn routes(router: axum::Router<AppState>, state: AppState) -> axum::Router<A
         .route("/v1/runs/{id}", get(handlers::get_run))
         .route("/v1/runs/{id}/regenerate", post(handlers::regenerate_run))
         .route("/v1/submissions", get(handlers::list_submissions))
-        // Flow proxy-back (DESIGN.md §4 — one of the narrow internal-API
+        // Flow proxy-back (DESIGN.md §4 - one of the narrow internal-API
         // exceptions: the steps are already event-triggered).
         .route("/v1/internal/steps/execute", post(handlers::execute_step))
-        // Calendar due-check (Cron proxy-back — RPT-CAL-1): Cron posts to
+        // Calendar due-check (Cron proxy-back - RPT-CAL-1): Cron posts to
         // {internalPath}/schedules/run with its fixed body envelope.
         .route(
             "/v1/internal/calendar/schedules/run",
             post(handlers::calendar_due_check),
         )
-        // ── Admin UI (RFW) + policy admin (§3.6 — shared implementation) ──
+        // ── Admin UI (RFW) + policy admin (§3.6 - shared implementation) ──
         .route("/v1/admin/ui/{*page}", get(crate::admin_ui::get_admin_ui))
         .route("/v1/admin/overview", get(crate::admin_ui::admin_overview))
         .route(
@@ -143,7 +143,7 @@ pub fn routes(router: axum::Router<AppState>, state: AppState) -> axum::Router<A
         .with_state(state)
 }
 
-/// Shared policy-admin surface accessor (§3.6) — the shared handlers
+/// Shared policy-admin surface accessor (§3.6) - the shared handlers
 /// extract this service's admin state via [`HasPolicyAdmin`].
 impl sentin8::shield::admin::HasPolicyAdmin for AppState {
     fn policy_admin(&self) -> &sentin8::shield::admin::SharedAdminState {

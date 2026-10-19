@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! Sentin8:Policy wiring tests for Bank8:Reporting.
-//! Per the platform policy design §6 (Definition of Done) — proves the
+//! Per the platform policy design §6 (Definition of Done) - proves the
 //! reporting wiring with the REAL seeded scope-mirror text
 //! (`registration::SCOPE_MIRROR_POLICIES`, the exact string
 //! `vertical enroll` upserts): no-set → deny; enforced no-match → deny;
@@ -66,7 +66,7 @@ fn mirror_engine(mode: PolicyMode) -> PolicyEngine {
 
 /// No-set → deny: an engine with NO loaded set denies everything
 /// (fail-closed at boot is the refuse-to-start contract; at request time
-/// an empty cache denies — design §3.3).
+/// an empty cache denies - design §3.3).
 #[test]
 fn no_set_denies_everything() {
     let e = PolicyEngine::new(SERVICE); // empty cache
@@ -102,7 +102,7 @@ fn shadow_never_blocks() {
     assert!(out.shadow_deny.is_some(), "would-deny must be reported");
 }
 
-/// The mirror permits its own grants — the scope-mirror invariant.
+/// The mirror permits its own grants - the scope-mirror invariant.
 #[test]
 fn mirror_permits_own_grants() {
     let e = mirror_engine(PolicyMode::Enforced);
@@ -119,7 +119,7 @@ fn mirror_permits_own_grants() {
     }
 }
 
-/// M2M parity: `token_tp == "m2m"` evaluates the same set — the token
+/// M2M parity: `token_tp == "m2m"` evaluates the same set - the token
 /// type never bypasses policy (principles §5.2a).
 #[test]
 fn m2m_parity() {
@@ -212,7 +212,7 @@ fn role_keyed_tenant_set_decides() {
 }
 
 /// Tenant isolation: sets of ANOTHER env are invisible to this env's
-/// evaluation — the cache key is (env_id, name).
+/// evaluation - the cache key is (env_id, name).
 #[test]
 fn cross_env_set_isolated() {
     let other_env = uuid::Uuid::new_v4();
@@ -255,7 +255,7 @@ fn declared_mirror_covers_every_handler_action() {
     }
 }
 
-/// The enroll-time dry-run gate (§4.2) accepts the declared set — an
+/// The enroll-time dry-run gate (§4.2) accepts the declared set - an
 /// enforced set that denies its own grants never ships.
 #[test]
 fn declared_set_passes_enroll_dry_run() {

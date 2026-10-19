@@ -3,16 +3,16 @@
 -- SPDX-FileCopyrightText: Copyright Contributors to the Bank8:Reporting
 -- SPDX-License-Identifier: Apache-2.0
 
--- Bank8:Reporting — the service's own schema `reporting`
+-- Bank8:Reporting - the service's own schema `reporting`
 -- (schema-per-service): the platform-scoped jurisdiction registry
--- (jurisdictions/regulators/return_templates — provisioned from
+-- (jurisdictions/regulators/return_templates - provisioned from
 -- vertical-registry.json by `vertical enroll`, not tenant-authored) +
 -- env-scoped filing tables + reporting.outbox / reporting.audit_journal
 -- producer tables, per services/reporting/DESIGN.md §3.
 
 CREATE SCHEMA IF NOT EXISTS reporting;
 
--- ── Jurisdiction registry (platform-scoped — no tenant RLS; the
+-- ── Jurisdiction registry (platform-scoped - no tenant RLS; the
 -- rows are registry data, written by env-init seeding, never by
 -- tenant requests) ─────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS reporting.jurisdictions (
@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS reporting.return_templates (
     return_code     TEXT NOT NULL,
     output_format   TEXT NOT NULL CHECK (output_format IN ('XBRL', 'CSV')),
     cadence         TEXT NOT NULL CHECK (cadence IN ('daily', 'monthly', 'quarterly', 'annual')),
-    -- Declarative data-source/mapping/validation definition — registry
+    -- Declarative data-source/mapping/validation definition - registry
     -- data; changing a regulator's format updates the registry, not the
     -- code (DESIGN.md §3).
     definition      JSONB NOT NULL DEFAULT '{}',
@@ -53,7 +53,7 @@ CREATE INDEX IF NOT EXISTS idx_reporting_templates_regulator
 
 -- ── Env-scoped filing tables (FORCE RLS) ────────────────────────────────
 
--- Submission targets — credentials resolved by REFERENCE through the
+-- Submission targets - credentials resolved by REFERENCE through the
 -- platform secret store; plaintext never enters a row (DESIGN.md §8).
 CREATE TABLE IF NOT EXISTS reporting.regulator_endpoints (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS reporting.regulator_endpoints (
     regulator_id    UUID NOT NULL REFERENCES reporting.regulators(id),
     endpoint_kind   TEXT NOT NULL CHECK (endpoint_kind IN ('portal', 'sftp', 'api')),
     url             TEXT NOT NULL,
-    -- Secret reference only (sentin8-secrets://) — never plaintext.
+    -- Secret reference only (sentin8-secrets://) - never plaintext.
     credential_ref  TEXT,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS reporting.submissions (
 CREATE INDEX IF NOT EXISTS idx_reporting_submissions_run
     ON reporting.submissions (run_id);
 
--- Corrections are amendments — terminal states never regress (§8).
+-- Corrections are amendments - terminal states never regress (§8).
 CREATE TABLE IF NOT EXISTS reporting.amendments (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     env_id          UUID NOT NULL,
@@ -173,7 +173,7 @@ CREATE POLICY amendments_dml ON reporting.amendments
 -- transaction as the domain change (or via the pool helper on handlers
 -- without an open transaction); the shell's post-commit relay pushes them
 -- to Bus POST /v1/produce (idempotency_key = row id). Generated from
--- sentin8-outbox::outbox_table_sql("reporting") — the outbox lives in the
+-- sentin8-outbox::outbox_table_sql("reporting") - the outbox lives in the
 -- service's OWN leaf schema, matching the relay's notify channel
 -- (`reporting_outbox_changed`) and the search_path-derived table
 -- resolution.
@@ -248,9 +248,9 @@ CREATE POLICY audit_journal_dml ON reporting.audit_journal
     USING (sentin8_context_initialized() AND env_id = sentin8_current_env_id())
     WITH CHECK (sentin8_context_initialized() AND env_id = sentin8_current_env_id());
 
--- ── Jurisdiction registry seed (platform-scoped data — JUR-REG-1) ────────
+-- ── Jurisdiction registry seed (platform-scoped data - JUR-REG-1) ────────
 -- The four target jurisdictions as registry ROWS, never code (zero
--- regulator names in services/*/src — principles §4.14 extended to
+-- regulator names in services/*/src - principles §4.14 extended to
 -- jurisdictions). Idempotent inserts: ON CONFLICT keeps the registry
 -- stable across re-inits; metadata carries the threshold/cadence data
 -- the consumers read. The AML/CTF thresholds drive compliance
@@ -338,14 +338,14 @@ JOIN reporting.regulators reg
  AND reg.jurisdiction_id = (SELECT id FROM reporting.jurisdictions WHERE country_code = t.country_code)
 ON CONFLICT (regulator_id, return_code) DO NOTHING;
 
--- ── Per-service role grants + search_path (F1 — §4.3e) ──────────────────
+-- ── Per-service role grants + search_path (F1 - §4.3e) ──────────────────
 -- The reporting service connects via its own PostgreSQL role
 -- (bank8_reporting_service, created + granted by
 -- `sentin8-cli vertical init/enroll` from this service's
 -- --print-registration --section=pg_roles). RLS only ENFORCES when the
 -- service does NOT bypass it. These grants give the role table access;
 -- the RLS policies scope the rows. Grants are scoped to the OWN schema
--- only — no blanket grants (SCHEMA-1 discipline).
+-- only - no blanket grants (SCHEMA-1 discipline).
 -- The search_path puts the service's OWN schema FIRST (outbox/
 -- audit_journal resolution for the shell's relay + journal pusher;
 -- unqualified domain tables resolve here too), then public (RLS helpers).
