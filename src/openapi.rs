@@ -53,4 +53,5 @@ use crate::handlers;
         (name = "policy", description = "Shield policy administration (shared surface)"),
         (name = "reporting", description = "Bank8:Reporting - regulatory filing calendar, generation, packaging, submission"),
     ),
-)]pub struct ReportingOpenApi;
+)]
+pub struct ReportingOpenApi;
