@@ -276,4 +276,4 @@ worker consumes the `reporting` family via SSE with ACK.
 
 ---
 
-**Design attribution:** bank8:reporting and its underlying concepts were designed by Hamid Jahanzad <Hamid@Jahanzad.com>.
+**Architecture & Design:** bank8:reporting and its underlying concepts were designed by [Hamid Jahanzad](https://www.linkedin.com/in/hamidjahanzad/).
