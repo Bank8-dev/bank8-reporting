@@ -190,7 +190,7 @@ fn row_to_run(row: &sqlx::postgres::PgRow) -> RunResponse {
 )]
 /// `GET /v1/health` - service health payload.
 ///
-/// Carries the binary's build identity (`version`/`build`, BUILDID-1) so
+/// Carries the binary's build identity (`version`/`build`,) so
 /// captain's monitor populates `make status`'s VERSION column for every
 /// instance - the consuming BINARY's identity, never a shared crate's.
 pub async fn health(State(state): State<AppState>) -> impl IntoResponse {
@@ -521,7 +521,7 @@ pub async fn execute_step(
     Ok(Json(resp))
 }
 
-// ── Typed proxy-back replies (OAPEC-9) ──────────────────────────────────
+// ── Typed proxy-back replies ──────────────────────────────────
 /// The `POST /v1/internal/calendar/schedules/run` reply.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "snake_case")]

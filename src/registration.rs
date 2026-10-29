@@ -55,7 +55,7 @@ const M2M_GRANTS: &[M2mGrant] = &[
         ],
     },
     // Shield hot-reload consumer (policy crate `policy_bus_client`, full
-    // colon identity - BUSPOLICY-1: the boot-minted cert is authorized by
+    // colon identity - the boot-minted cert is authorized by
     // the enroll-published registry map, and enrollment only provisions
     // declared workloads; without this row every policy SSE connect 401s
     // "workload is not enrolled" and hot-reload is dead for this service).
@@ -78,7 +78,7 @@ const M2M_GRANTS: &[M2mGrant] = &[
     },
     // Event-driven env-init consumer (event_consumer.rs; consumer group
     // `bank8:reporting:envinit` under the short-form `reporting-envinit`
-    // workload identity - BUSPOLICY-1: every runtime-presented identity
+    // workload identity - every runtime-presented identity
     // must be declared for the enroll-published registry map to authorize
     // it).
     M2mGrant {

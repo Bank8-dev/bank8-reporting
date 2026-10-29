@@ -165,7 +165,7 @@ async fn handle_message(pool: &PgPool, msg: &sentin8::bus::contracts::Message) {
         None => return,
     };
 
-    // VDC-2 consumer-side defense-in-depth: the event's first colon
+    // consumer-side defense-in-depth: the event's first colon
     // segment must match the recorded producer vertical - verifies the
     // message Bus delivered before seeding tenant state.
     if let Err(reason) = sentin8::bus::client::BusClient::require_publisher(msg) {

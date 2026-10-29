@@ -10,7 +10,7 @@
 //! auth/bus) cannot run stateless. The dumped spec shape is pinned here:
 //! `docs/openapi.json` must exist and stay at or above the documented
 //! operation floor. Adding a served route without an annotation drops the
-//! count only when a companion annotation is removed - OAPEC-8 tracks the
+//! count only when a companion annotation is removed - tracks the
 //! stateless harness for state-bound services.
 
 #[test]
