@@ -10,7 +10,7 @@
 //! the (env, template, period) unique index is the dedupe floor
 //! (reporting DESIGN.md §3; JUR-REG-1/RPT-CAL-1).
 //!
-//! Uses the same SSE pattern as `bank8-fdx/src/event_consumer.rs`.
+//! Uses the same SSE pattern as the vertical event consumers (see the ledger DESIGN.md).
 
 use std::time::Duration;
 
