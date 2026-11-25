@@ -18,7 +18,8 @@
       "telemetry_property": {
         "slug": "reporting",
         "name": "Bank8:Reporting Telemetry"
-      }
+      },
+      "exposure": "internal"
     }
   ]
 }
